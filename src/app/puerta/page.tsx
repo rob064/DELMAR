@@ -17,6 +17,18 @@ interface Trabajador {
   dni: string;
 }
 
+interface Jornada {
+  id: string;
+  nombre: string;
+  horaInicio: string;
+  horaFin: string;
+  diasSemana: number[];
+  fechaInicio: string | null;
+  fechaFin: string | null;
+  esExcepcion: boolean;
+  activo: boolean;
+}
+
 interface Asistencia {
   id: string;
   fecha: string;
@@ -35,11 +47,12 @@ interface Asistencia {
 
 export default function PuertaPage() {
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
+  const [jornadas, setJornadas] = useState<Jornada[]>([]);
   const [asistenciasHoy, setAsistenciasHoy] = useState<Asistencia[]>([]);
   const [fechaSeleccionada, setFechaSeleccionada] = useState(getLocalDateString());
   const [selectedTrabajador, setSelectedTrabajador] = useState<string>("");
   const [searchDni, setSearchDni] = useState("");
-  const [turnoProgramado, setTurnoProgramado] = useState<string>("08:00-16:00");
+  const [turnoProgramado, setTurnoProgramado] = useState<string>("");
   const [observaciones, setObservaciones] = useState("");
   const [loading, setLoading] = useState(false);
   const [horaActual, setHoraActual] = useState(new Date());
@@ -50,6 +63,7 @@ export default function PuertaPage() {
 
   useEffect(() => {
     cargarTrabajadores();
+    cargarJornadas();
     cargarAsistenciasHoy();
 
     const interval = setInterval(() => {
@@ -66,6 +80,18 @@ export default function PuertaPage() {
       setTrabajadores(data);
     } catch (error) {
       console.error("Error al cargar trabajadores:", error);
+    }
+  };
+
+  const cargarJornadas = async () => {
+    try {
+      const res = await fetch("/api/jornadas");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setJornadas(data.filter((j: Jornada) => j.activo));
+      }
+    } catch (error) {
+      console.error("Error al cargar jornadas:", error);
     }
   };
 
@@ -250,8 +276,8 @@ export default function PuertaPage() {
                 <div className="space-y-2">
                   <Label htmlFor="turno">
                     {fechaSeleccionada === getLocalDateString()
-                      ? "¿Qué turno trabajará hoy?"
-                      : `¿Qué turno trabajó el ${parseDateString(fechaSeleccionada).toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}?`}
+                      ? "¿Qué jornada trabajará hoy?"
+                      : `¿Qué jornada trabajó el ${parseDateString(fechaSeleccionada).toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}?`}
                   </Label>
                   <select
                     id="turno"
@@ -259,21 +285,16 @@ export default function PuertaPage() {
                     onChange={(e) => setTurnoProgramado(e.target.value)}
                     className="w-full rounded-md border border-gray-300 px-3 py-2"
                   >
-                    <option value="08:00-16:00" disabled={turnoYaPaso("08:00-16:00")}>
-                      Mañana (08:00 - 16:00){turnoYaPaso("08:00-16:00") ? " - Turno finalizado" : ""}
-                    </option>
-                    <option value="16:00-24:00" disabled={turnoYaPaso("16:00-24:00")}>
-                      Tarde (16:00 - 24:00){turnoYaPaso("16:00-24:00") ? " - Turno finalizado" : ""}
-                    </option>
-                    <option value="00:00-08:00" disabled={turnoYaPaso("00:00-08:00")}>
-                      Noche (00:00 - 08:00){turnoYaPaso("00:00-08:00") ? " - Turno finalizado" : ""}
-                    </option>
-                    <option value="06:00-14:00" disabled={turnoYaPaso("06:00-14:00")}>
-                      Temprano (06:00 - 14:00){turnoYaPaso("06:00-14:00") ? " - Turno finalizado" : ""}
-                    </option>
-                    <option value="14:00-22:00" disabled={turnoYaPaso("14:00-22:00")}>
-                      Vespertino (14:00 - 22:00){turnoYaPaso("14:00-22:00") ? " - Turno finalizado" : ""}
-                    </option>
+                    <option value="">Seleccione una jornada...</option>
+                    {jornadas.map((jornada) => {
+                      const horario = `${jornada.horaInicio}-${jornada.horaFin}`;
+                      const yaPaso = turnoYaPaso(horario);
+                      return (
+                        <option key={jornada.id} value={horario} disabled={yaPaso}>
+                          {jornada.nombre} ({jornada.horaInicio} - {jornada.horaFin}){yaPaso ? " - Jornada finalizada" : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               )}
