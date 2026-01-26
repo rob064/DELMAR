@@ -511,31 +511,79 @@ export default function ProduccionPage() {
                     No hay registros para hoy
                   </p>
                 ) : (
-                  produccionHoy.map((prod) => (
-                    <div key={prod.id} className="rounded-lg border p-3 space-y-2">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium">
-                            {prod.trabajador.nombres} {prod.trabajador.apellidos}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {prod.actividad.nombre}
-                          </p>
+                  produccionHoy.map((prod) => {
+                    const esActiva = prod.actividad.tipoPago === "POR_HORA" && !prod.horaFin;
+                    const horaInicio = prod.horaInicio ? new Date(prod.horaInicio) : null;
+                    const horaFin = prod.horaFin ? new Date(prod.horaFin) : null;
+                    
+                    return (
+                      <div 
+                        key={prod.id} 
+                        className={`rounded-lg border p-3 space-y-2 ${
+                          esActiva ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/30' : ''
+                        }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">
+                                {prod.trabajador.nombres} {prod.trabajador.apellidos}
+                              </p>
+                              {esActiva && (
+                                <span className="flex items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                  <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></div>
+                                  ACTIVA
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {prod.actividad.nombre}
+                              {prod.actividad.tipoPago === "POR_HORA" ? " (Por Hora)" : " (Por Producción)"}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-primary">
+                              {formatCurrency(prod.montoGenerado)}
+                            </p>
+                            {esActiva && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => cerrarActividad(prod.id)}
+                                disabled={loading}
+                                className="mt-1"
+                              >
+                                Cerrar
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                        <p className="font-bold text-primary">
-                          {formatCurrency(prod.montoGenerado)}
-                        </p>
+                        
+                        <div className="flex gap-4 text-sm text-muted-foreground">
+                          {prod.actividad.tipoPago === "POR_HORA" && (
+                            <>
+                              {horaInicio && (
+                                <span>Inicio: {horaInicio.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}</span>
+                              )}
+                              {horaFin && (
+                                <span>Fin: {horaFin.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}</span>
+                              )}
+                              {prod.horasTrabajadas && (
+                                <span className="font-medium text-foreground">
+                                  {Number(prod.horasTrabajadas).toFixed(2)} horas
+                                </span>
+                              )}
+                            </>
+                          )}
+                          {prod.cantidadProducida && (
+                            <span className="font-medium text-foreground">
+                              {prod.cantidadProducida} unidades
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-4 text-sm">
-                        {prod.horasTrabajadas && (
-                          <span>{prod.horasTrabajadas} horas</span>
-                        )}
-                        {prod.cantidadProducida && (
-                          <span>{prod.cantidadProducida} unidades</span>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </CardContent>
