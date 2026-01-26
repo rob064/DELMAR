@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Edit, Trash2, X } from "lucide-react";
+import { Plus, Edit, Trash2, X, ChevronDown } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 type Actividad = {
@@ -57,6 +57,11 @@ export default function SuperusuarioPage() {
   const [jornadas, setJornadas] = useState<Jornada[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Estados para expansión de secciones
+  const [actividadesExpanded, setActividadesExpanded] = useState(false);
+  const [jornadasExpanded, setJornadasExpanded] = useState(false);
+  const [usuariosExpanded, setUsuariosExpanded] = useState(false);
   
   // Estados para modal de actividad
   const [showActividadModal, setShowActividadModal] = useState(false);
@@ -409,19 +414,32 @@ export default function SuperusuarioPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Actividades de Producción</CardTitle>
-                <CardDescription>Gestionar actividades y sus tarifas</CardDescription>
-              </div>
+              <button
+                onClick={() => setActividadesExpanded(!actividadesExpanded)}
+                className="flex-1 flex items-center gap-2 text-left"
+              >
+                <ChevronDown
+                  className={`h-5 w-5 transition-transform ${
+                    actividadesExpanded ? "rotate-180" : ""
+                  }`}
+                />
+                <div>
+                  <CardTitle>Actividades de Producción</CardTitle>
+                  <CardDescription>
+                    Gestionar actividades y sus tarifas ({actividades.length} total)
+                  </CardDescription>
+                </div>
+              </button>
               <Button onClick={() => abrirModalActividad()}>
                 <Plus className="mr-2 h-4 w-4" />
                 Nueva Actividad
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {actividades.map((actividad) => (
+          {actividadesExpanded && (
+            <CardContent>
+              <div className="space-y-2">
+                {actividades.map((actividad) => (
                 <div
                   key={actividad.id}
                   className="flex items-center justify-between border rounded-lg p-4"
@@ -457,27 +475,41 @@ export default function SuperusuarioPage() {
                   </div>
                 </div>
               ))}
-            </div>
-          </CardContent>
+              </div>
+            </CardContent>
+          )}
         </Card>
 
         {/* Sección de Jornadas */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Jornadas Laborales</CardTitle>
-                <CardDescription>Configurar horarios de trabajo</CardDescription>
-              </div>
+              <button
+                onClick={() => setJornadasExpanded(!jornadasExpanded)}
+                className="flex-1 flex items-center gap-2 text-left"
+              >
+                <ChevronDown
+                  className={`h-5 w-5 transition-transform ${
+                    jornadasExpanded ? "rotate-180" : ""
+                  }`}
+                />
+                <div>
+                  <CardTitle>Jornadas Laborales</CardTitle>
+                  <CardDescription>
+                    Configurar horarios de trabajo ({jornadas.length} total)
+                  </CardDescription>
+                </div>
+              </button>
               <Button onClick={() => abrirModalJornada()}>
                 <Plus className="mr-2 h-4 w-4" />
                 Nueva Jornada
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {jornadas.map((jornada) => (
+          {jornadasExpanded && (
+            <CardContent>
+              <div className="space-y-2">
+                {jornadas.map((jornada) => (
                 <div
                   key={jornada.id}
                   className="flex items-center justify-between border rounded-lg p-4"
@@ -520,27 +552,41 @@ export default function SuperusuarioPage() {
                   </div>
                 </div>
               ))}
-            </div>
-          </CardContent>
+              </div>
+            </CardContent>
+          )}
         </Card>
 
         {/* Sección de Usuarios */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Usuarios del Sistema</CardTitle>
-                <CardDescription>Gestionar usuarios y sus permisos</CardDescription>
-              </div>
+              <button
+                onClick={() => setUsuariosExpanded(!usuariosExpanded)}
+                className="flex-1 flex items-center gap-2 text-left"
+              >
+                <ChevronDown
+                  className={`h-5 w-5 transition-transform ${
+                    usuariosExpanded ? "rotate-180" : ""
+                  }`}
+                />
+                <div>
+                  <CardTitle>Usuarios del Sistema</CardTitle>
+                  <CardDescription>
+                    Gestionar usuarios y sus permisos ({usuarios.length} total)
+                  </CardDescription>
+                </div>
+              </button>
               <Button onClick={() => abrirModalUsuario()}>
                 <Plus className="mr-2 h-4 w-4" />
                 Nuevo Usuario
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {usuarios.map((usuario) => (
+          {usuariosExpanded && (
+            <CardContent>
+              <div className="space-y-2">
+                {usuarios.map((usuario) => (
                 <div
                   key={usuario.id}
                   className={`flex items-center justify-between border rounded-lg p-4 ${
@@ -584,6 +630,7 @@ export default function SuperusuarioPage() {
               ))}
             </div>
           </CardContent>
+          )}
         </Card>
 
         {/* Modal de Actividad */}
