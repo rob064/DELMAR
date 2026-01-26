@@ -4,15 +4,18 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 // GET - Obtener todos los trabajadores
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const includeInactive = searchParams.get('includeInactive') === 'true';
+
     const trabajadores = await prisma.trabajador.findMany({
-      where: { activo: true },
+      where: includeInactive ? {} : { activo: true },
       include: {
         usuario: {
           select: {

@@ -15,9 +15,6 @@ interface Trabajador {
   dni: string;
   telefono?: string;
   direccion?: string;
-  horarioEntrada: string;
-  horarioSalida: string;
-  salarioPorHora: string;
   activo: boolean;
   usuario: {
     email: string;
@@ -28,6 +25,8 @@ export default function TrabajadoresPage() {
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -40,12 +39,22 @@ export default function TrabajadoresPage() {
   });
 
   useEffect(() => {
+    const cargarTrabajadores = async () => {
+      try {
+        const res = await fetch(`/api/trabajadores?includeInactive=${showInactive}`);
+        const data = await res.json();
+        setTrabajadores(data);
+      } catch (error) {
+        console.error("Error al cargar trabajadores:", error);
+      }
+    };
+    
     cargarTrabajadores();
-  }, []);
+  }, [showInactive]);
 
-  const cargarTrabajadores = async () => {
+  const recargarTrabajadores = async () => {
     try {
-      const res = await fetch("/api/trabajadores");
+      const res = await fetch(`/api/trabajadores?includeInactive=${showInactive}`);
       const data = await res.json();
       setTrabajadores(data);
     } catch (error) {
@@ -58,15 +67,19 @@ export default function TrabajadoresPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/trabajadores", {
-        method: "POST",
+      const url = editingId ? `/api/trabajadores/${editingId}` : "/api/trabajadores";
+      const method = editingId ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
       if (res.ok) {
-        alert("Trabajador creado exitosamente");
+        alert(editingId ? "Trabajador actualizado exitosamente" : "Trabajador creado exitosamente");
         setShowModal(false);
+        setEditingId(null);
         setFormData({
           email: "",
           password: "",
@@ -76,17 +89,89 @@ export default function TrabajadoresPage() {
           telefono: "",
           direccion: "",
         });
-        cargarTrabajadores();
+        recargarTrabajadores();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al crear trabajador");
+        alert(error.error || `Error al ${editingId ? "actualizar" : "crear"} trabajador`);
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al crear trabajador");
+      alert(`Error al ${editingId ? "actualizar" : "crear"} trabajador`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (trabajador: Trabajador) => {
+    setEditingId(trabajador.id);
+    setFormData({
+      email: trabajador.usuario.email,
+      password: "", // No mostrar password actual
+      nombres: trabajador.nombres,
+      apellidos: trabajador.apellidos,
+      dni: trabajador.dni,
+      telefono: trabajador.telefono || "",
+      direccion: trabajador.direccion || "",
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (id: string, nombre: string) => {
+    if (!confirm(`¿Estás seguro de desactivar a ${nombre}?`)) return;
+
+    try {
+      const res = await fetch(`/api/trabajadores/${id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        alert("Trabajador desactivado exitosamente");
+        recargarTrabajadores();
+      } else {
+        const error = await res.json();
+        alert(error.error || "Error al desactivar trabajador");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al desactivar trabajador");
+    }
+  };
+
+  const handleReactivate = async (id: string, nombre: string) => {
+    if (!confirm(`¿Desea reactivar a ${nombre}?`)) return;
+
+    try {
+      const res = await fetch(`/api/trabajadores/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activo: true }),
+      });
+
+      if (res.ok) {
+        alert("Trabajador reactivado exitosamente");
+        recargarTrabajadores();
+      } else {
+        const error = await res.json();
+        alert(error.error || "Error al reactivar trabajador");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al reactivar trabajador");
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingId(null);
+    setFormData({
+      email: "",
+      password: "",
+      nombres: "",
+      apellidos: "",
+      dni: "",
+      telefono: "",
+      direccion: "",
+    });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,10 +192,21 @@ export default function TrabajadoresPage() {
               Administra el personal de la empresa
             </p>
           </div>
-          <Button onClick={() => setShowModal(true)}>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Nuevo Trabajador
-          </Button>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300"
+              />
+              <span className="text-sm text-gray-700">Mostrar desactivados</span>
+            </label>
+            <Button onClick={() => setShowModal(true)}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Nuevo Trabajador
+            </Button>
+          </div>
         </div>
 
         <Card>
@@ -165,6 +261,41 @@ export default function TrabajadoresPage() {
                           </p>
                         )}
                       </div>
+
+                      <div className="flex gap-2 pt-2">
+                        {trabajador.activo ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(trabajador)}
+                              className="flex-1"
+                            >
+                              <Edit className="mr-1 h-3 w-3" />
+                              Editar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDelete(trabajador.id, `${trabajador.nombres} ${trabajador.apellidos}`)}
+                              className="flex-1"
+                            >
+                              <Trash2 className="mr-1 h-3 w-3" />
+                              Desactivar
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleReactivate(trabajador.id, `${trabajador.nombres} ${trabajador.apellidos}`)}
+                            className="w-full"
+                          >
+                            <UserPlus className="mr-1 h-3 w-3" />
+                            Reactivar
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -173,14 +304,16 @@ export default function TrabajadoresPage() {
           </CardContent>
         </Card>
 
-        {/* Modal Nuevo Trabajador */}
+        {/* Modal Nuevo/Editar Trabajador */}
         {showModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
             <Card className="w-full max-w-2xl my-8">
               <CardHeader>
-                <CardTitle>Nuevo Trabajador</CardTitle>
+                <CardTitle>{editingId ? "Editar Trabajador" : "Nuevo Trabajador"}</CardTitle>
                 <CardDescription>
-                  Completa el formulario para registrar un nuevo trabajador
+                  {editingId 
+                    ? "Actualiza los datos del trabajador" 
+                    : "Completa el formulario para registrar un nuevo trabajador"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -255,7 +388,7 @@ export default function TrabajadoresPage() {
 
                     <div className="space-y-2">
                       <Label htmlFor="password">
-                        Contraseña <span className="text-red-500">*</span>
+                        Contraseña {editingId ? "(dejar vacío para no cambiar)" : <span className="text-red-500">*</span>}
                       </Label>
                       <Input
                         id="password"
@@ -263,9 +396,9 @@ export default function TrabajadoresPage() {
                         type="password"
                         value={formData.password}
                         onChange={handleChange}
-                        placeholder="Mínimo 6 caracteres"
+                        placeholder={editingId ? "Dejar vacío para mantener" : "Mínimo 6 caracteres"}
                         minLength={6}
-                        required
+                        required={!editingId}
                       />
                     </div>
                   </div>
@@ -283,11 +416,13 @@ export default function TrabajadoresPage() {
 
                   <div className="flex gap-2 pt-4">
                     <Button type="submit" disabled={loading} className="flex-1">
-                      {loading ? "Creando..." : "Crear Trabajador"}
+                      {loading 
+                        ? (editingId ? "Actualizando..." : "Creando...") 
+                        : (editingId ? "Actualizar Trabajador" : "Crear Trabajador")}
                     </Button>
                     <Button
                       type="button"
-                      onClick={() => setShowModal(false)}
+                      onClick={handleCloseModal}
                       variant="outline"
                       className="flex-1"
                     >
