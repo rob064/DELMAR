@@ -492,7 +492,7 @@ export default function FinanzasPage() {
                           className="w-full mt-2"
                         >
                           <Plus className="mr-2 h-4 w-4" />
-                          Registrar Abono
+                          Registrar Pago
                         </Button>
                       )}
                     </div>
@@ -593,12 +593,12 @@ export default function FinanzasPage() {
           </div>
         )}
 
-        {/* Modal Registrar Abono */}
+        {/* Modal Registrar Pago */}
         {showModalAbono && pagoSeleccionado && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <Card className="w-full max-w-md">
               <CardHeader>
-                <CardTitle>Registrar Abono</CardTitle>
+                <CardTitle>Registrar Pago</CardTitle>
                 <CardDescription>
                   {pagoSeleccionado.trabajador.nombres} {pagoSeleccionado.trabajador.apellidos}
                 </CardDescription>
@@ -664,7 +664,7 @@ export default function FinanzasPage() {
 
                 <div className="flex gap-2">
                   <Button onClick={registrarAbono} disabled={loading} className="flex-1">
-                    Registrar Abono
+                    Registrar Pago
                   </Button>
                   <Button
                     onClick={() => {
