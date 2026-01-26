@@ -1,0 +1,262 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum Role {
+  ADMIN
+  PUERTA
+  PRODUCCION
+  FINANZAS
+  TRABAJADOR
+}
+
+enum TipoPago {
+  POR_HORA
+  POR_PRODUCCION
+}
+
+enum EstadoAsistencia {
+  PRESENTE
+  TARDE
+  AUSENTE
+  JUSTIFICADO
+}
+
+enum TipoTransaccion {
+  ADELANTO
+  MULTA
+  PAGO
+  AJUSTE
+}
+
+// ==========================================
+// USUARIOS Y AUTENTICACIÓN
+// ==========================================
+
+model Usuario {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  nombre        String
+  role          Role     @default(TRABAJADOR)
+  activo        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relación con trabajador (si es un trabajador)
+  trabajador    Trabajador?
+
+  @@map("usuarios")
+}
+
+// ==========================================
+// TRABAJADORES
+// ==========================================
+
+model Trabajador {
+  id                String   @id @default(cuid())
+  usuarioId         String   @unique
+  usuario           Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  
+  // Datos personales
+  nombres           String
+  apellidos         String
+  dni               String   @unique
+  telefono          String?
+  direccion         String?
+  fechaNacimiento   DateTime?
+  fechaIngreso      DateTime @default(now())
+  
+  // Estado
+  activo            Boolean  @default(true)
+  cuentaBancaria    String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relaciones
+  asistencias       Asistencia[]
+  produccionDiaria  ProduccionDiaria[]
+  transacciones     Transaccion[]
+  pagos             Pago[]
+
+  @@map("trabajadores")
+}
+
+// ==========================================
+// ACTIVIDADES DE PRODUCCIÓN
+// ==========================================
+
+model Actividad {
+  id                String      @id @default(cuid())
+  codigo            String      @unique // TH, PR, MB, MM, MP, PB, PC, PP, PS
+  nombre            String      @unique
+  descripcion       String?
+  tipoPago          TipoPago    // POR_HORA o POR_PRODUCCION
+  valor             Decimal     @db.Decimal(10, 2) // tarifa por hora o por unidad
+  unidadMedida      String?     // para POR_PRODUCCION: kg, cajas, unidades
+  activo            Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relaciones
+  produccionDiaria  ProduccionDiaria[]
+
+  @@map("actividades")
+}
+
+// ==========================================
+// ASISTENCIAS (MÓDULO PUERTA)
+// ==========================================
+
+model Asistencia {
+  id                String            @id @default(cuid())
+  trabajadorId      String
+  trabajador        Trabajador        @relation(fields: [trabajadorId], references: [id], onDelete: Cascade)
+  
+  fecha             DateTime          @default(now()) @db.Date
+  
+  // Turno programado para este día
+  turnoProgramado   String?           // Ej: "08:00-16:00", "16:00-24:00", "00:00-08:00"
+  
+  horaEntrada       DateTime?
+  horaSalida        DateTime?
+  
+  estado            EstadoAsistencia  @default(PRESENTE)
+  minutosRetraso    Int               @default(0)
+  
+  // Justificaciones
+  justificada       Boolean           @default(false)
+  motivoJustificacion String?
+  
+  // Registro
+  registradoPor     String?           // ID del usuario que registró
+  observaciones     String?
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@unique([trabajadorId, fecha])
+  @@index([fecha])
+  @@index([trabajadorId])
+  @@map("asistencias")
+}
+
+// ==========================================
+// PRODUCCIÓN DIARIA (MÓDULO PRODUCCIÓN)
+// ==========================================
+
+model ProduccionDiaria {
+  id                String     @id @default(cuid())
+  trabajadorId      String
+  trabajador        Trabajador @relation(fields: [trabajadorId], references: [id], onDelete: Cascade)
+  
+  actividadId       String
+  actividad         Actividad  @relation(fields: [actividadId], references: [id])
+  
+  fecha             DateTime   @default(now()) @db.Date
+  
+  // Según tipo de pago
+  horasTrabajadas   Decimal?   @db.Decimal(10, 2)
+  cantidadProducida Decimal?   @db.Decimal(10, 2)
+  
+  // Cálculo automático
+  montoGenerado     Decimal    @default(0) @db.Decimal(10, 2)
+  
+  // Control
+  horaInicio        DateTime?
+  horaFin           DateTime?
+  
+  observaciones     String?
+  registradoPor     String?    // ID del usuario que registró
+  
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([fecha])
+  @@index([trabajadorId])
+  @@index([actividadId])
+  @@map("produccion_diaria")
+}
+
+// ==========================================
+// TRANSACCIONES FINANCIERAS
+// ==========================================
+
+model Transaccion {
+  id                String           @id @default(cuid())
+  trabajadorId      String
+  trabajador        Trabajador       @relation(fields: [trabajadorId], references: [id], onDelete: Cascade)
+  
+  tipo              TipoTransaccion
+  monto             Decimal          @db.Decimal(10, 2)
+  concepto          String
+  fecha             DateTime         @default(now())
+  
+  // Para adelantos y multas
+  descontado        Boolean          @default(false)
+  pagoId            String?          // Referencia al pago donde se descontó
+  
+  observaciones     String?
+  registradoPor     String?          // ID del usuario que registró
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([trabajadorId])
+  @@index([fecha])
+  @@index([tipo])
+  @@map("transacciones")
+}
+
+// ==========================================
+// PAGOS SEMANALES (MÓDULO FINANZAS)
+// ==========================================
+
+model Pago {
+  id                String     @id @default(cuid())
+  trabajadorId      String
+  trabajador        Trabajador @relation(fields: [trabajadorId], references: [id], onDelete: Cascade)
+  
+  // Período del pago
+  fechaInicio       DateTime   @db.Date
+  fechaFin          DateTime   @db.Date
+  
+  // Cálculos
+  totalHoras        Decimal    @default(0) @db.Decimal(10, 2)
+  totalProduccion   Decimal    @default(0) @db.Decimal(10, 2)
+  
+  montoBase         Decimal    @default(0) @db.Decimal(10, 2)
+  adelantos         Decimal    @default(0) @db.Decimal(10, 2)
+  multas            Decimal    @default(0) @db.Decimal(10, 2)
+  ajustes           Decimal    @default(0) @db.Decimal(10, 2)
+  
+  totalNeto         Decimal    @default(0) @db.Decimal(10, 2)
+  
+  // Estado
+  pagado            Boolean    @default(false)
+  fechaPago         DateTime?
+  metodoPago        String?    // Efectivo, Transferencia, etc.
+  
+  observaciones     String?
+  generadoPor       String?    // ID del usuario que generó el pago
+  
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([trabajadorId])
+  @@index([fechaInicio, fechaFin])
+  @@map("pagos")
+}

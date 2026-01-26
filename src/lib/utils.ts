@@ -1,0 +1,74 @@
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export function formatCurrency(amount: number | string): string {
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat("es-PE", {
+    style: "currency",
+    currency: "PEN",
+  }).format(num);
+}
+
+export function formatDate(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat("es-PE", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(d);
+}
+
+export function formatTime(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat("es-PE", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
+export function formatDateTime(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat("es-PE", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
+export function calcularMinutosRetraso(
+  horaEntrada: Date,
+  horarioEntrada: string
+): number {
+  const [horas, minutos] = horarioEntrada.split(":").map(Number);
+  const horarioEsperado = new Date(horaEntrada);
+  horarioEsperado.setHours(horas, minutos, 0, 0);
+
+  const diferencia = horaEntrada.getTime() - horarioEsperado.getTime();
+  const minutosRetraso = Math.floor(diferencia / 60000);
+
+  return minutosRetraso > 0 ? minutosRetraso : 0;
+}
+
+export function obtenerFechaSemana(fecha: Date = new Date()): {
+  inicio: Date;
+  fin: Date;
+} {
+  const dia = fecha.getDay();
+  const diferencia = dia === 0 ? -6 : 1 - dia; // Lunes como inicio
+
+  const inicio = new Date(fecha);
+  inicio.setDate(fecha.getDate() + diferencia);
+  inicio.setHours(0, 0, 0, 0);
+
+  const fin = new Date(inicio);
+  fin.setDate(inicio.getDate() + 6);
+  fin.setHours(23, 59, 59, 999);
+
+  return { inicio, fin };
+}
