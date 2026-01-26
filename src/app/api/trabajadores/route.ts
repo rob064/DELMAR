@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
             role: true,
           },
         },
+        jornada: true, // Incluir jornada para FIJOS
       },
       orderBy: {
         apellidos: "asc",
@@ -58,6 +59,12 @@ export async function POST(request: NextRequest) {
       direccion,
       fechaNacimiento,
       cuentaBancaria,
+      tipoTrabajador,
+      jornadaId,
+      salarioBasePersonalizado,
+      tarifaPorHoraPersonalizada,
+      multiplicadorSuplPersonalizado,
+      multiplicadorExtraPersonalizado,
     } = body;
 
     // Verificar si el email o DNI ya existen
@@ -108,6 +115,12 @@ export async function POST(request: NextRequest) {
           direccion,
           fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
           cuentaBancaria,
+          tipoTrabajador: tipoTrabajador || "EVENTUAL",
+          jornadaId: tipoTrabajador === "FIJO" ? jornadaId : null,
+          salarioBasePersonalizado,
+          tarifaPorHoraPersonalizada,
+          multiplicadorSuplPersonalizado,
+          multiplicadorExtraPersonalizado,
         },
       });
 

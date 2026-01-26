@@ -16,13 +16,31 @@ interface Trabajador {
   telefono?: string;
   direccion?: string;
   activo: boolean;
+  tipoTrabajador: string;
+  jornadaId?: string;
+  jornada?: {
+    id: string;
+    nombre: string;
+    horaInicio: string;
+    horaFin: string;
+  };
+  salarioBasePersonalizado?: number;
   usuario: {
     email: string;
   };
 }
 
+interface Jornada {
+  id: string;
+  nombre: string;
+  horaInicio: string;
+  horaFin: string;
+  salarioBaseMensual: number;
+}
+
 export default function TrabajadoresPage() {
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
+  const [jornadas, setJornadas] = useState<Jornada[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -36,20 +54,31 @@ export default function TrabajadoresPage() {
     dni: "",
     telefono: "",
     direccion: "",
+    tipoTrabajador: "EVENTUAL",
+    jornadaId: "",
+    salarioBasePersonalizado: "",
+    tarifaPorHoraPersonalizada: "",
+    multiplicadorSuplPersonalizado: "",
+    multiplicadorExtraPersonalizado: "",
   });
 
   useEffect(() => {
-    const cargarTrabajadores = async () => {
+    const cargarDatos = async () => {
       try {
-        const res = await fetch(`/api/trabajadores?includeInactive=${showInactive}`);
-        const data = await res.json();
-        setTrabajadores(data);
+        const [trabajadoresRes, jornadasRes] = await Promise.all([
+          fetch(`/api/trabajadores?includeInactive=${showInactive}`),
+          fetch('/api/jornadas')
+        ]);
+        const trabajadoresData = await trabajadoresRes.json();
+        const jornadasData = await jornadasRes.json();
+        setTrabajadores(trabajadoresData);
+        setJornadas(jornadasData.filter((j: Jornada) => j.activo));
       } catch (error) {
-        console.error("Error al cargar trabajadores:", error);
+        console.error("Error al cargar datos:", error);
       }
     };
     
-    cargarTrabajadores();
+    cargarDatos();
   }, [showInactive]);
 
   const recargarTrabajadores = async () => {
@@ -88,6 +117,12 @@ export default function TrabajadoresPage() {
           dni: "",
           telefono: "",
           direccion: "",
+          tipoTrabajador: "EVENTUAL",
+          jornadaId: "",
+          salarioBasePersonalizado: "",
+          tarifaPorHoraPersonalizada: "",
+          multiplicadorSuplPersonalizado: "",
+          multiplicadorExtraPersonalizado: "",
         });
         recargarTrabajadores();
       } else {
@@ -112,6 +147,12 @@ export default function TrabajadoresPage() {
       dni: trabajador.dni,
       telefono: trabajador.telefono || "",
       direccion: trabajador.direccion || "",
+      tipoTrabajador: trabajador.tipoTrabajador || "EVENTUAL",
+      jornadaId: trabajador.jornadaId || "",
+      salarioBasePersonalizado: trabajador.salarioBasePersonalizado?.toString() || "",
+      tarifaPorHoraPersonalizada: "",
+      multiplicadorSuplPersonalizado: "",
+      multiplicadorExtraPersonalizado: "",
     });
     setShowModal(true);
   };
@@ -171,10 +212,16 @@ export default function TrabajadoresPage() {
       dni: "",
       telefono: "",
       direccion: "",
+      tipoTrabajador: "EVENTUAL",
+      jornadaId: "",
+      salarioBasePersonalizado: "",
+      tarifaPorHoraPersonalizada: "",
+      multiplicadorSuplPersonalizado: "",
+      multiplicadorExtraPersonalizado: "",
     });
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -237,6 +284,13 @@ export default function TrabajadoresPage() {
                           <p className="text-sm text-muted-foreground">
                             DNI: {trabajador.dni}
                           </p>
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            trabajador.tipoTrabajador === "FIJO"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-purple-100 text-purple-800"
+                          }`}>
+                            {trabajador.tipoTrabajador === "FIJO" ? "FIJO" : "EVENTUAL"}
+                          </span>
                         </div>
                         <span
                           className={`text-xs px-2 py-1 rounded ${
@@ -254,9 +308,18 @@ export default function TrabajadoresPage() {
                           <span className="font-medium">Email:</span>{" "}
                           {trabajador.usuario.email}
                         </p>
+                        {trabajador.jornada && (
+                          <p>
+                            <span className="font-medium">Jornada:</span>{" "}
+                            {trabajador.jornada.nombre} ({trabajador.jornada.horaInicio} - {trabajador.jornada.horaFin})
+                          </p>
+                        )}
                         {trabajador.telefono && (
                           <p>
                             <span className="font-medium">Teléfono:</span>{" "}
+                            {trabajador.telefono}
+                          </p>
+                        )}
                             {trabajador.telefono}
                           </p>
                         )}
@@ -401,7 +464,109 @@ export default function TrabajadoresPage() {
                         required={!editingId}
                       />
                     </div>
+
+                    {/* Tipo de Trabajador */}
+                    <div className="space-y-2">
+                      <Label htmlFor="tipoTrabajador">
+                        Tipo de Trabajador <span className="text-red-500">*</span>
+                      </Label>
+                      <select
+                        id="tipoTrabajador"
+                        name="tipoTrabajador"
+                        value={formData.tipoTrabajador}
+                        onChange={handleChange}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2"
+                        required
+                      >
+                        <option value="EVENTUAL">EVENTUAL (Producción)</option>
+                        <option value="FIJO">FIJO (Jornada)</option>
+                      </select>
+                    </div>
+
+                    {/* Jornada - solo para FIJOS */}
+                    {formData.tipoTrabajador === "FIJO" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="jornadaId">
+                          Jornada <span className="text-red-500">*</span>
+                        </Label>
+                        <select
+                          id="jornadaId"
+                          name="jornadaId"
+                          value={formData.jornadaId}
+                          onChange={handleChange}
+                          className="w-full rounded-md border border-input bg-background px-3 py-2"
+                          required={formData.tipoTrabajador === "FIJO"}
+                        >
+                          <option value="">Seleccione una jornada</option>
+                          {jornadas.map((jornada) => (
+                            <option key={jornada.id} value={jornada.id}>
+                              {jornada.nombre} ({jornada.horaInicio} - {jornada.horaFin})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Configuración Salarial Personalizada (opcional para FIJOS) */}
+                  {formData.tipoTrabajador === "FIJO" && (
+                    <div className="border rounded-lg p-4 space-y-4 bg-blue-50/50 dark:bg-blue-950/20">
+                      <h3 className="font-semibold text-sm">Configuración Salarial Personalizada (Opcional)</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Si no se especifica, se usarán los valores de la jornada seleccionada
+                      </p>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="salarioBasePersonalizado">Salario Base Mensual</Label>
+                          <Input
+                            id="salarioBasePersonalizado"
+                            name="salarioBasePersonalizado"
+                            type="number"
+                            step="0.01"
+                            value={formData.salarioBasePersonalizado}
+                            onChange={handleChange}
+                            placeholder="$433.33"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="tarifaPorHoraPersonalizada">Tarifa por Hora</Label>
+                          <Input
+                            id="tarifaPorHoraPersonalizada"
+                            name="tarifaPorHoraPersonalizada"
+                            type="number"
+                            step="0.0001"
+                            value={formData.tarifaPorHoraPersonalizada}
+                            onChange={handleChange}
+                            placeholder="$2.71"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="multiplicadorSuplPersonalizado">Multiplicador H. Suplementarias</Label>
+                          <Input
+                            id="multiplicadorSuplPersonalizado"
+                            name="multiplicadorSuplPersonalizado"
+                            type="number"
+                            step="0.01"
+                            value={formData.multiplicadorSuplPersonalizado}
+                            onChange={handleChange}
+                            placeholder="1.75"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="multiplicadorExtraPersonalizado">Multiplicador H. Extra</Label>
+                          <Input
+                            id="multiplicadorExtraPersonalizado"
+                            name="multiplicadorExtraPersonalizado"
+                            type="number"
+                            step="0.01"
+                            value={formData.multiplicadorExtraPersonalizado}
+                            onChange={handleChange}
+                            placeholder="2.50"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="direccion">Dirección</Label>

@@ -27,6 +27,12 @@ export async function PATCH(
       fechaNacimiento,
       cuentaBancaria,
       activo,
+      tipoTrabajador,
+      jornadaId,
+      salarioBasePersonalizado,
+      tarifaPorHoraPersonalizada,
+      multiplicadorSuplPersonalizado,
+      multiplicadorExtraPersonalizado,
     } = body;
 
     const trabajadorId = id;
@@ -106,6 +112,14 @@ export async function PATCH(
       if (apellidos !== undefined) trabajadorData.apellidos = apellidos;
       if (dni !== undefined) trabajadorData.dni = dni;
       if (activo !== undefined) trabajadorData.activo = activo;
+      
+      // Campos FIJOS
+      if (tipoTrabajador !== undefined) trabajadorData.tipoTrabajador = tipoTrabajador;
+      if (jornadaId !== undefined) trabajadorData.jornadaId = tipoTrabajador === "FIJO" ? jornadaId : null;
+      if (salarioBasePersonalizado !== undefined) trabajadorData.salarioBasePersonalizado = salarioBasePersonalizado;
+      if (tarifaPorHoraPersonalizada !== undefined) trabajadorData.tarifaPorHoraPersonalizada = tarifaPorHoraPersonalizada;
+      if (multiplicadorSuplPersonalizado !== undefined) trabajadorData.multiplicadorSuplPersonalizado = multiplicadorSuplPersonalizado;
+      if (multiplicadorExtraPersonalizado !== undefined) trabajadorData.multiplicadorExtraPersonalizado = multiplicadorExtraPersonalizado;
 
       const trabajador = await tx.trabajador.update({
         where: { id: trabajadorId },
