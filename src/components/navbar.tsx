@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   LayoutDashboard,
   DoorOpen,
@@ -44,7 +45,7 @@ export function Navbar() {
   const userRoutes = routes[session.user.role as keyof typeof routes] || [];
 
   return (
-    <nav className="border-b bg-white">
+    <nav className="border-b bg-background">
       <div className="flex h-16 items-center px-4 lg:px-8">
         <div className="flex items-center space-x-2">
           <Link href="/" className="flex items-center">
@@ -78,6 +79,7 @@ export function Navbar() {
             <p className="font-medium">{session.user.nombre}</p>
             <p className="text-xs text-muted-foreground">{session.user.role}</p>
           </div>
+          <ThemeToggle />
           <Button
             variant="ghost"
             size="icon"
