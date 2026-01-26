@@ -130,6 +130,26 @@ export default function PuertaPage() {
     }
   };
 
+  // Verificar si un turno ya pasó (solo para fecha actual)
+  const turnoYaPaso = (turno: string): boolean => {
+    if (fechaSeleccionada !== new Date().toISOString().split("T")[0]) {
+      return false; // Si no es hoy, no bloquear ningún turno
+    }
+
+    const horaFin = turno.split("-")[1];
+    const [horaFinHora, horaFinMin] = horaFin.split(":").map(Number);
+    
+    const ahora = new Date();
+    const horaActualHora = ahora.getHours();
+    const horaActualMin = ahora.getMinutes();
+    
+    // Convertir a minutos totales para comparar
+    const minutosActuales = horaActualHora * 60 + horaActualMin;
+    const minutosFinTurno = horaFinHora * 60 + horaFinMin;
+    
+    return minutosActuales > minutosFinTurno;
+  };
+
   const trabajadoresFiltrados = trabajadores.filter(
     (t) =>
       t.dni.includes(searchDni) ||
@@ -216,18 +236,32 @@ export default function PuertaPage() {
 
               {selectedTrabajador && (
                 <div className="space-y-2">
-                  <Label htmlFor="turno">¿Qué turno trabajará hoy?</Label>
+                  <Label htmlFor="turno">
+                    {fechaSeleccionada === new Date().toISOString().split("T")[0]
+                      ? "¿Qué turno trabajará hoy?"
+                      : `¿Qué turno trabajó el ${new Date(fechaSeleccionada).toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}?`}
+                  </Label>
                   <select
                     id="turno"
                     value={turnoProgramado}
                     onChange={(e) => setTurnoProgramado(e.target.value)}
                     className="w-full rounded-md border border-gray-300 px-3 py-2"
                   >
-                    <option value="08:00-16:00">Mañana (08:00 - 16:00)</option>
-                    <option value="16:00-24:00">Tarde (16:00 - 24:00)</option>
-                    <option value="00:00-08:00">Noche (00:00 - 08:00)</option>
-                    <option value="06:00-14:00">Temprano (06:00 - 14:00)</option>
-                    <option value="14:00-22:00">Vespertino (14:00 - 22:00)</option>
+                    <option value="08:00-16:00" disabled={turnoYaPaso("08:00-16:00")}>
+                      Mañana (08:00 - 16:00){turnoYaPaso("08:00-16:00") ? " - Turno finalizado" : ""}
+                    </option>
+                    <option value="16:00-24:00" disabled={turnoYaPaso("16:00-24:00")}>
+                      Tarde (16:00 - 24:00){turnoYaPaso("16:00-24:00") ? " - Turno finalizado" : ""}
+                    </option>
+                    <option value="00:00-08:00" disabled={turnoYaPaso("00:00-08:00")}>
+                      Noche (00:00 - 08:00){turnoYaPaso("00:00-08:00") ? " - Turno finalizado" : ""}
+                    </option>
+                    <option value="06:00-14:00" disabled={turnoYaPaso("06:00-14:00")}>
+                      Temprano (06:00 - 14:00){turnoYaPaso("06:00-14:00") ? " - Turno finalizado" : ""}
+                    </option>
+                    <option value="14:00-22:00" disabled={turnoYaPaso("14:00-22:00")}>
+                      Vespertino (14:00 - 22:00){turnoYaPaso("14:00-22:00") ? " - Turno finalizado" : ""}
+                    </option>
                   </select>
                 </div>
               )}
