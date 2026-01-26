@@ -226,18 +226,64 @@ export default function PuertaPage() {
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Registrar Asistencia</CardTitle>
-              <CardDescription>Marcar entrada o salida de trabajador</CardDescription>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle>Registrar Asistencia</CardTitle>
+                  <CardDescription>Marcar entrada o salida de trabajador</CardDescription>
+                </div>
+                {selectedTrabajador && (() => {
+                  const asistencia = asistenciasHoy.find(a => a.trabajadorId === selectedTrabajador);
+                  const tieneEntrada = asistencia?.horaEntrada;
+                  const tieneSalida = asistencia?.horaSalida;
+
+                  if (!tieneEntrada) {
+                    return (
+                      <Button
+                        onClick={() => registrarAsistencia("entrada")}
+                        disabled={loading}
+                        size="sm"
+                      >
+                        Registrar Entrada
+                      </Button>
+                    );
+                  } else if (tieneEntrada && !tieneSalida) {
+                    return (
+                      <Button
+                        onClick={() => registrarAsistencia("salida")}
+                        disabled={loading}
+                        variant="secondary"
+                        size="sm"
+                      >
+                        Registrar Salida
+                      </Button>
+                    );
+                  } else {
+                    return null;
+                  }
+                })()}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="fecha">Fecha</Label>
-                <Input
-                  id="fecha"
-                  type="date"
-                  value={fechaSeleccionada}
-                  onChange={(e) => setFechaSeleccionada(e.target.value)}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fecha">Fecha</Label>
+                  <Input
+                    id="fecha"
+                    type="date"
+                    value={fechaSeleccionada}
+                    onChange={(e) => setFechaSeleccionada(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="horaActual">Hora actual</Label>
+                  <Input
+                    id="horaActual"
+                    type="text"
+                    value={formatTime(horaActual)}
+                    readOnly
+                    className="bg-muted"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -353,31 +399,7 @@ export default function PuertaPage() {
                 const tieneEntrada = asistencia?.horaEntrada;
                 const tieneSalida = asistencia?.horaSalida;
 
-                if (!tieneEntrada) {
-                  // No hay entrada -> mostrar solo botón de entrada
-                  return (
-                    <Button
-                      onClick={() => registrarAsistencia("entrada")}
-                      disabled={loading}
-                      className="w-full"
-                    >
-                      Registrar Entrada
-                    </Button>
-                  );
-                } else if (tieneEntrada && !tieneSalida) {
-                  // Hay entrada pero no salida -> mostrar solo botón de salida
-                  return (
-                    <Button
-                      onClick={() => registrarAsistencia("salida")}
-                      disabled={loading}
-                      variant="secondary"
-                      className="w-full"
-                    >
-                      Registrar Salida
-                    </Button>
-                  );
-                } else {
-                  // Ya tiene entrada y salida completas
+                if (tieneEntrada && tieneSalida) {
                   return (
                     <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center">
                       <p className="text-sm text-green-800 font-medium">
@@ -386,6 +408,7 @@ export default function PuertaPage() {
                     </div>
                   );
                 }
+                return null;
               })()}
 
               {!selectedTrabajador && (
