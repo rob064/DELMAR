@@ -89,6 +89,14 @@ export default function FinanzasPage() {
     observaciones: "",
   });
 
+  // Vista previa nómina
+  const [showPreviewNomina, setShowPreviewNomina] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
+
+  // Editar transacción
+  const [showEditarTransaccion, setShowEditarTransaccion] = useState(false);
+  const [transaccionEditar, setTransaccionEditar] = useState<any>(null);
+
   useEffect(() => {
     cargarDatos();
     // Establecer semana actual por defecto
@@ -180,6 +188,8 @@ export default function FinanzasPage() {
       if (res.ok) {
         alert("Nómina generada exitosamente");
         setTrabajadorNomina("");
+        setShowPreviewNomina(false);
+        setPreviewData(null);
         cargarDatos();
       } else {
         const error = await res.json();
@@ -188,6 +198,102 @@ export default function FinanzasPage() {
     } catch (error) {
       console.error("Error:", error);
       alert("Error al generar nómina");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verPreviewNomina = async () => {
+    if (!trabajadorNomina || !fechaInicioNomina || !fechaFinNomina) {
+      alert("Por favor seleccione un trabajador y las fechas");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/pagos/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trabajadorId: trabajadorNomina,
+          fechaInicio: fechaInicioNomina,
+          fechaFin: fechaFinNomina,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setPreviewData(data);
+        setShowPreviewNomina(true);
+      } else {
+        const error = await res.json();
+        alert(error.error || "Error al obtener vista previa");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al obtener vista previa");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const editarTransaccion = async () => {
+    if (!transaccionEditar) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/transacciones/${transaccionEditar.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          monto: transaccionEditar.monto,
+          concepto: transaccionEditar.concepto,
+          observaciones: transaccionEditar.observaciones,
+        }),
+      });
+
+      if (res.ok) {
+        alert("Transacción actualizada exitosamente");
+        setShowEditarTransaccion(false);
+        setTransaccionEditar(null);
+        cargarDatos();
+        if (showPreviewNomina) {
+          verPreviewNomina(); // Actualizar preview si está abierto
+        }
+      } else {
+        const error = await res.json();
+        alert(error.error || "Error al editar transacción");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al editar transacción");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const eliminarTransaccion = async (id: string) => {
+    if (!confirm("¿Está seguro de eliminar esta transacción?")) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/transacciones/${id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        alert("Transacción eliminada exitosamente");
+        cargarDatos();
+        if (showPreviewNomina) {
+          verPreviewNomina(); // Actualizar preview si está abierto
+        }
+      } else {
+        const error = await res.json();
+        alert(error.error || "Error al eliminar transacción");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al eliminar transacción");
     } finally {
       setLoading(false);
     }
@@ -356,7 +462,10 @@ export default function FinanzasPage() {
                 />
               </div>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <Button onClick={verPreviewNomina} disabled={loading} variant="outline">
+                Ver Vista Previa
+              </Button>
               <Button onClick={generarNomina} disabled={loading}>
                 <DollarSign className="mr-2 h-4 w-4" />
                 Generar Nómina
@@ -670,6 +779,203 @@ export default function FinanzasPage() {
                     onClick={() => {
                       setShowModalAbono(false);
                       setPagoSeleccionado(null);
+                    }}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Modal Vista Previa Nómina */}
+        {showPreviewNomina && previewData && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <Card className="w-full max-w-4xl my-8">
+              <CardHeader>
+                <CardTitle>Vista Previa de Nómina</CardTitle>
+                <CardDescription>
+                  {previewData.trabajador.nombres} {previewData.trabajador.apellidos} - DNI: {previewData.trabajador.dni}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Información del período */}
+                <div className="rounded-lg border bg-muted/50 p-4">
+                  <h3 className="font-medium mb-2">Período</h3>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>Inicio: {formatDate(new Date(previewData.periodo.fechaInicio))}</div>
+                    <div>Fin: {formatDate(new Date(previewData.periodo.fechaFin))}</div>
+                    <div>Días del período: {previewData.periodo.diasPeriodo}</div>
+                    <div>Días trabajados: {previewData.periodo.diasTrabajados}</div>
+                  </div>
+                </div>
+
+                {/* Resumen financiero */}
+                <div className="rounded-lg border p-4">
+                  <h3 className="font-medium mb-3">Resumen Financiero</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Horas trabajadas:</span>
+                      <span className="font-medium">{previewData.resumen.totalHoras} hrs</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Producción total:</span>
+                      <span className="font-medium">{previewData.resumen.totalProduccion}</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2">
+                      <span>Monto base:</span>
+                      <span className="font-bold text-green-600">{formatCurrency(previewData.resumen.montoBase)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Adelantos:</span>
+                      <span className="text-orange-600">-{formatCurrency(previewData.resumen.adelantos)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Multas:</span>
+                      <span className="text-red-600">-{formatCurrency(previewData.resumen.multas)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Ajustes:</span>
+                      <span className={parseFloat(previewData.resumen.ajustes) >= 0 ? "text-green-600" : "text-red-600"}>
+                        {formatCurrency(previewData.resumen.ajustes)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t-2 pt-2">
+                      <span className="font-bold text-lg">Total Neto:</span>
+                      <span className="font-bold text-lg text-blue-600">{formatCurrency(previewData.resumen.totalNeto)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Transacciones */}
+                {previewData.transacciones && previewData.transacciones.length > 0 && (
+                  <div className="rounded-lg border p-4">
+                    <h3 className="font-medium mb-3">Transacciones del Período</h3>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {previewData.transacciones.map((t: any) => (
+                        <div key={t.id} className="flex items-center justify-between p-2 rounded border bg-muted/30">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{t.concepto}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {t.tipo} - {formatDate(new Date(t.fecha))}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`font-medium ${
+                              t.tipo === "ADELANTO" ? "text-orange-600" : 
+                              t.tipo === "MULTA" ? "text-red-600" : "text-blue-600"
+                            }`}>
+                              {formatCurrency(t.monto)}
+                            </span>
+                            {!t.descontado && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setTransaccionEditar(t);
+                                    setShowEditarTransaccion(true);
+                                  }}
+                                >
+                                  Editar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => eliminarTransaccion(t.id)}
+                                  className="text-red-600"
+                                >
+                                  Eliminar
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {previewData.pagoExistente && (
+                  <div className="rounded-lg border border-orange-200 bg-orange-50 dark:bg-orange-950/20 p-4">
+                    <p className="text-sm text-orange-800 dark:text-orange-200">
+                      ⚠️ Ya existe una nómina generada para este período
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={generarNomina}
+                    disabled={loading || previewData.pagoExistente}
+                    className="flex-1"
+                  >
+                    <DollarSign className="mr-2 h-4 w-4" />
+                    Confirmar y Generar Nómina
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowPreviewNomina(false);
+                      setPreviewData(null);
+                    }}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Modal Editar Transacción */}
+        {showEditarTransaccion && transaccionEditar && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle>Editar Transacción</CardTitle>
+                <CardDescription>{transaccionEditar.tipo}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Monto</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={transaccionEditar.monto}
+                    onChange={(e) => setTransaccionEditar({ ...transaccionEditar, monto: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Concepto</Label>
+                  <Input
+                    value={transaccionEditar.concepto}
+                    onChange={(e) => setTransaccionEditar({ ...transaccionEditar, concepto: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Observaciones / Justificación</Label>
+                  <Textarea
+                    value={transaccionEditar.observaciones || ""}
+                    onChange={(e) => setTransaccionEditar({ ...transaccionEditar, observaciones: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <Button onClick={editarTransaccion} disabled={loading} className="flex-1">
+                    Guardar Cambios
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowEditarTransaccion(false);
+                      setTransaccionEditar(null);
                     }}
                     variant="outline"
                     className="flex-1"
