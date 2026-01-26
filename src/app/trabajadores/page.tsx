@@ -320,9 +320,6 @@ export default function TrabajadoresPage() {
                             {trabajador.telefono}
                           </p>
                         )}
-                            {trabajador.telefono}
-                          </p>
-                        )}
                       </div>
 
                       <div className="flex gap-2 pt-2">
