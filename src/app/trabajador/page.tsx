@@ -78,7 +78,7 @@ export default function TrabajadorPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-muted/30">
         <Navbar />
         <div className="flex items-center justify-center h-96">
           <p>Cargando...</p>

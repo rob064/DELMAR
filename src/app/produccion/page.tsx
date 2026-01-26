@@ -257,7 +257,7 @@ export default function ProduccionPage() {
   const actividadSeleccionada = actividades.find((a) => a.id === selectedActividad);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-muted/30">
       <Navbar />
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between">
@@ -361,7 +361,7 @@ export default function ProduccionPage() {
                     type="text"
                     value={horasTrabajadas || "0.00"}
                     readOnly
-                    className="bg-gray-50"
+                    className="bg-background"
                     placeholder="Se calcula desde asistencia"
                   />
                   {actividadSeleccionada.tarifaPorHora && horasTrabajadas && (

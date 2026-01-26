@@ -182,7 +182,7 @@ export default function TrabajadoresPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-muted/30">
       <Navbar />
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between">

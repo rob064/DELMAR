@@ -65,7 +65,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-muted/30">
         <Navbar />
         <div className="flex items-center justify-center h-96">
           <p>Cargando...</p>
@@ -165,7 +165,7 @@ export default function DashboardPage() {
             <CardContent className="space-y-2">
               <a
                 href="/puerta"
-                className="block p-3 rounded-lg border hover:bg-gray-50 transition"
+                className="block p-3 rounded-lg border hover:bg-muted/50 transition"
               >
                 <p className="font-medium">Control de Puerta</p>
                 <p className="text-sm text-muted-foreground">
@@ -174,7 +174,7 @@ export default function DashboardPage() {
               </a>
               <a
                 href="/produccion"
-                className="block p-3 rounded-lg border hover:bg-gray-50 transition"
+                className="block p-3 rounded-lg border hover:bg-muted/50 transition"
               >
                 <p className="font-medium">Registro de Producción</p>
                 <p className="text-sm text-muted-foreground">
@@ -183,7 +183,7 @@ export default function DashboardPage() {
               </a>
               <a
                 href="/finanzas"
-                className="block p-3 rounded-lg border hover:bg-gray-50 transition"
+                className="block p-3 rounded-lg border hover:bg-muted/50 transition"
               >
                 <p className="font-medium">Gestión Financiera</p>
                 <p className="text-sm text-muted-foreground">

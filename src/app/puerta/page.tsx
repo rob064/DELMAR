@@ -183,7 +183,7 @@ export default function PuertaPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-muted/30">
       <Navbar />
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between">
@@ -278,7 +278,7 @@ export default function PuertaPage() {
                 </div>
               )}
 
-              <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="space-y-3 rounded-lg border bg-muted/50 p-4">
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
@@ -301,7 +301,7 @@ export default function PuertaPage() {
                       step="1"
                       value={horaManual}
                       onChange={(e) => setHoraManual(e.target.value)}
-                      className="bg-white"
+                      className="bg-background"
                     />
                     <p className="text-xs text-muted-foreground">
                       Se registrará con la hora seleccionada en lugar de la hora actual
@@ -368,7 +368,7 @@ export default function PuertaPage() {
               })()}
 
               {!selectedTrabajador && (
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+                <div className="rounded-lg border bg-muted/50 p-4 text-center">
                   <p className="text-sm text-muted-foreground">
                     Seleccione un trabajador para registrar asistencia
                   </p>
