@@ -32,6 +32,11 @@ export async function GET(request: NextRequest) {
             dni: true,
           },
         },
+        abonos: {
+          orderBy: {
+            fecha: "desc",
+          },
+        },
       },
       orderBy: {
         fechaInicio: "desc",
@@ -149,6 +154,8 @@ export async function POST(request: NextRequest) {
           multas,
           ajustes,
           totalNeto,
+          montoPagado: new Decimal(0),
+          saldoPendiente: totalNeto,
           generadoPor: session.user.id,
         },
         include: {
@@ -158,6 +165,7 @@ export async function POST(request: NextRequest) {
               apellidos: true,
             },
           },
+          abonos: true,
         },
       });
 
@@ -187,41 +195,4 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH - Marcar pago como pagado
-export async function PATCH(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !["ADMIN", "FINANZAS"].includes(session.user.role)) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
 
-    const body = await request.json();
-    const { pagoId, metodoPago, observaciones } = body;
-
-    const pago = await prisma.pago.update({
-      where: { id: pagoId },
-      data: {
-        pagado: true,
-        fechaPago: new Date(),
-        metodoPago,
-        observaciones,
-      },
-      include: {
-        trabajador: {
-          select: {
-            nombres: true,
-            apellidos: true,
-          },
-        },
-      },
-    });
-
-    return NextResponse.json(pago);
-  } catch (error) {
-    console.error("Error al marcar pago:", error);
-    return NextResponse.json(
-      { error: "Error al marcar pago" },
-      { status: 500 }
-    );
-  }
-}

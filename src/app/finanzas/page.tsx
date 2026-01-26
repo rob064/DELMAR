@@ -30,6 +30,15 @@ interface Transaccion {
   };
 }
 
+interface Abono {
+  id: string;
+  monto: string;
+  metodoPago: string;
+  numeroReferencia: string | null;
+  fecha: string;
+  observaciones: string | null;
+}
+
 interface Pago {
   id: string;
   fechaInicio: string;
@@ -39,11 +48,14 @@ interface Pago {
   multas: string;
   ajustes: string;
   totalNeto: string;
+  montoPagado: string;
+  saldoPendiente: string;
   pagado: boolean;
   trabajador: {
     nombres: string;
     apellidos: string;
   };
+  abonos: Abono[];
 }
 
 export default function FinanzasPage() {
@@ -64,9 +76,25 @@ export default function FinanzasPage() {
 
   // Generar nómina
   const [trabajadorNomina, setTrabajadorNomina] = useState("");
+  const [fechaInicioNomina, setFechaInicioNomina] = useState("");
+  const [fechaFinNomina, setFechaFinNomina] = useState("");
+  
+  // Modal abono
+  const [showModalAbono, setShowModalAbono] = useState(false);
+  const [pagoSeleccionado, setPagoSeleccionado] = useState<Pago | null>(null);
+  const [nuevoAbono, setNuevoAbono] = useState({
+    monto: "",
+    metodoPago: "Efectivo",
+    numeroReferencia: "",
+    observaciones: "",
+  });
 
   useEffect(() => {
     cargarDatos();
+    // Establecer semana actual por defecto
+    const { inicio, fin } = obtenerFechaSemana();
+    setFechaInicioNomina(inicio.toISOString().split("T")[0]);
+    setFechaFinNomina(fin.toISOString().split("T")[0]);
   }, []);
 
   const cargarDatos = async () => {
@@ -132,7 +160,10 @@ export default function FinanzasPage() {
       return;
     }
 
-    const { inicio, fin } = obtenerFechaSemana();
+    if (!fechaInicioNomina || !fechaFinNomina) {
+      alert("Por favor seleccione las fechas");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -141,8 +172,8 @@ export default function FinanzasPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           trabajadorId: trabajadorNomina,
-          fechaInicio: inicio.toISOString().split("T")[0],
-          fechaFin: fin.toISOString().split("T")[0],
+          fechaInicio: fechaInicioNomina,
+          fechaFin: fechaFinNomina,
         }),
       });
 
@@ -162,28 +193,65 @@ export default function FinanzasPage() {
     }
   };
 
-  const marcarComoPagado = async (pagoId: string) => {
-    const metodoPago = prompt("Método de pago (Efectivo/Transferencia/Otro):");
-    if (!metodoPago) return;
+  const abrirModalAbono = (pago: Pago) => {
+    setPagoSeleccionado(pago);
+    setNuevoAbono({
+      monto: pago.saldoPendiente,
+      metodoPago: "Efectivo",
+      numeroReferencia: "",
+      observaciones: "",
+    });
+    setShowModalAbono(true);
+  };
+
+  const registrarAbono = async () => {
+    if (!pagoSeleccionado || !nuevoAbono.monto || !nuevoAbono.metodoPago) {
+      alert("Por favor complete todos los campos requeridos");
+      return;
+    }
+
+    const monto = parseFloat(nuevoAbono.monto);
+    const saldoPendiente = parseFloat(pagoSeleccionado.saldoPendiente);
+
+    if (monto <= 0) {
+      alert("El monto debe ser mayor a 0");
+      return;
+    }
+
+    if (monto > saldoPendiente) {
+      alert("El monto del abono no puede exceder el saldo pendiente");
+      return;
+    }
 
     setLoading(true);
     try {
-      const res = await fetch("/api/pagos", {
-        method: "PATCH",
+      const res = await fetch("/api/abonos", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pagoId, metodoPago }),
+        body: JSON.stringify({
+          pagoId: pagoSeleccionado.id,
+          ...nuevoAbono,
+        }),
       });
 
       if (res.ok) {
-        alert("Pago marcado como pagado");
+        alert("Abono registrado exitosamente");
+        setShowModalAbono(false);
+        setPagoSeleccionado(null);
+        setNuevoAbono({
+          monto: "",
+          metodoPago: "Efectivo",
+          numeroReferencia: "",
+          observaciones: "",
+        });
         cargarDatos();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al marcar pago");
+        alert(error.error || "Error al registrar abono");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al marcar pago");
+      alert("Error al registrar abono");
     } finally {
       setLoading(false);
     }
@@ -249,12 +317,12 @@ export default function FinanzasPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Generar Nómina Semanal</CardTitle>
-            <CardDescription>Calcular y generar pago para la semana actual</CardDescription>
+            <CardTitle>Generar Nómina</CardTitle>
+            <CardDescription>Calcular y generar pago para un período específico</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-4">
-              <div className="flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
                 <Label>Trabajador</Label>
                 <select
                   className="w-full rounded-md border border-input bg-background px-3 py-2"
@@ -269,12 +337,30 @@ export default function FinanzasPage() {
                   ))}
                 </select>
               </div>
-              <div className="flex items-end">
-                <Button onClick={generarNomina} disabled={loading}>
-                  <DollarSign className="mr-2 h-4 w-4" />
-                  Generar Nómina
-                </Button>
+              <div>
+                <Label htmlFor="fechaInicio">Fecha Inicio</Label>
+                <Input
+                  id="fechaInicio"
+                  type="date"
+                  value={fechaInicioNomina}
+                  onChange={(e) => setFechaInicioNomina(e.target.value)}
+                />
               </div>
+              <div>
+                <Label htmlFor="fechaFin">Fecha Fin</Label>
+                <Input
+                  id="fechaFin"
+                  type="date"
+                  value={fechaFinNomina}
+                  onChange={(e) => setFechaFinNomina(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={generarNomina} disabled={loading}>
+                <DollarSign className="mr-2 h-4 w-4" />
+                Generar Nómina
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -376,15 +462,37 @@ export default function FinanzasPage() {
                           <span className="text-muted-foreground">Neto: </span>
                           <span className="font-bold">{formatCurrency(pago.totalNeto)}</span>
                         </div>
+                        <div className="col-span-2 border-t pt-2 mt-1">
+                          <span className="text-muted-foreground">Pagado: </span>
+                          <span className="text-green-600 font-medium">{formatCurrency(pago.montoPagado)}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Saldo: </span>
+                          <span className="text-orange-600 font-medium">{formatCurrency(pago.saldoPendiente)}</span>
+                        </div>
                       </div>
+                      {pago.abonos && pago.abonos.length > 0 && (
+                        <div className="text-xs border-t pt-2">
+                          <p className="font-medium mb-1">Abonos registrados:</p>
+                          <div className="space-y-1">
+                            {pago.abonos.map((abono) => (
+                              <div key={abono.id} className="flex justify-between text-muted-foreground">
+                                <span>{formatDate(new Date(abono.fecha))} - {abono.metodoPago}</span>
+                                <span>{formatCurrency(abono.monto)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {!pago.pagado && (
                         <Button
                           size="sm"
-                          onClick={() => marcarComoPagado(pago.id)}
+                          onClick={() => abrirModalAbono(pago)}
                           disabled={loading}
                           className="w-full mt-2"
                         >
-                          Marcar como Pagado
+                          <Plus className="mr-2 h-4 w-4" />
+                          Registrar Abono
                         </Button>
                       )}
                     </div>
@@ -474,6 +582,95 @@ export default function FinanzasPage() {
                   </Button>
                   <Button
                     onClick={() => setShowNuevaTransaccion(false)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Modal Registrar Abono */}
+        {showModalAbono && pagoSeleccionado && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle>Registrar Abono</CardTitle>
+                <CardDescription>
+                  {pagoSeleccionado.trabajador.nombres} {pagoSeleccionado.trabajador.apellidos}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-lg border bg-muted/50 p-3 text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total neto:</span>
+                    <span className="font-medium">{formatCurrency(pagoSeleccionado.totalNeto)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Pagado:</span>
+                    <span className="text-green-600">{formatCurrency(pagoSeleccionado.montoPagado)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1">
+                    <span className="font-medium">Saldo pendiente:</span>
+                    <span className="font-bold text-orange-600">{formatCurrency(pagoSeleccionado.saldoPendiente)}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Monto del abono</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={nuevoAbono.monto}
+                    onChange={(e) => setNuevoAbono({ ...nuevoAbono, monto: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Método de pago</Label>
+                  <select
+                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                    value={nuevoAbono.metodoPago}
+                    onChange={(e) => setNuevoAbono({ ...nuevoAbono, metodoPago: e.target.value })}
+                  >
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Número de referencia (opcional)</Label>
+                  <Input
+                    value={nuevoAbono.numeroReferencia}
+                    onChange={(e) => setNuevoAbono({ ...nuevoAbono, numeroReferencia: e.target.value })}
+                    placeholder="Ej: número de cheque, referencia de transferencia"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Observaciones (opcional)</Label>
+                  <Textarea
+                    value={nuevoAbono.observaciones}
+                    onChange={(e) => setNuevoAbono({ ...nuevoAbono, observaciones: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <Button onClick={registrarAbono} disabled={loading} className="flex-1">
+                    Registrar Abono
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowModalAbono(false);
+                      setPagoSeleccionado(null);
+                    }}
                     variant="outline"
                     className="flex-1"
                   >
