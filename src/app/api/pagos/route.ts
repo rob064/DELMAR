@@ -64,8 +64,29 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { trabajadorId, fechaInicio, fechaFin } = body;
 
+    if (!trabajadorId || !fechaInicio || !fechaFin) {
+      return NextResponse.json(
+        { error: "Debe seleccionar un trabajador y las fechas de inicio y fin" },
+        { status: 400 }
+      );
+    }
+
     const inicio = new Date(fechaInicio);
     const fin = new Date(fechaFin);
+
+    if (isNaN(inicio.getTime()) || isNaN(fin.getTime())) {
+      return NextResponse.json(
+        { error: "Las fechas proporcionadas no son válidas" },
+        { status: 400 }
+      );
+    }
+
+    if (inicio > fin) {
+      return NextResponse.json(
+        { error: "La fecha de inicio no puede ser posterior a la fecha de fin" },
+        { status: 400 }
+      );
+    }
 
     // Verificar si ya existe un pago para este período
     const pagoExistente = await prisma.pago.findFirst({
@@ -100,6 +121,13 @@ export async function POST(request: NextRequest) {
     let totalHoras = new Decimal(0);
     let totalProduccion = new Decimal(0);
     let montoBase = new Decimal(0);
+
+    if (produccion.length === 0) {
+      return NextResponse.json(
+        { error: "No hay registros de producción para el período seleccionado. Debe existir al menos un registro de producción para generar la nómina." },
+        { status: 400 }
+      );
+    }
 
     produccion.forEach((prod) => {
       if (prod.horasTrabajadas) {
@@ -188,8 +216,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(pago);
   } catch (error) {
     console.error("Error al generar pago:", error);
+    const mensaje = error instanceof Error ? error.message : "Error desconocido";
     return NextResponse.json(
-      { error: "Error al generar pago" },
+      { error: `Error al generar pago: ${mensaje}` },
       { status: 500 }
     );
   }

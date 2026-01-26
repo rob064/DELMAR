@@ -116,8 +116,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(resultado);
   } catch (error) {
     console.error("Error al registrar abono:", error);
+    const mensaje = error instanceof Error ? error.message : "Error desconocido";
     return NextResponse.json(
-      { error: "Error al registrar abono" },
+      { error: `Error al registrar abono: ${mensaje}` },
       { status: 500 }
     );
   }
