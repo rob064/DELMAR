@@ -112,12 +112,12 @@ async function main() {
   console.log("✓ Trabajador 2: María López (DNI: 45678902)");
 
   // ==========================================
-  // ACTIVIDADES (SEGÚN IMAGEN DEL USUARIO)
+  // ACTIVIDADES DE PRODUCCIÓN
   // ==========================================
-  console.log("\n📦 Creando actividades...");
+  console.log("\n📦 Creando actividades de producción...");
 
   const actividades = [
-    // Actividades de BODEGA (Por Producción)
+    // Actividades de BODEGA
     { codigo: "BA", nombre: "BODEGA APOYO", tipo: "POR_HORA", valor: 2.00 },
     { codigo: "BE", nombre: "BODEGA ETIQUETADO OVAL", tipo: "POR_PRODUCCION", valor: 0.19, unidad: "unidades" },
     { codigo: "BT", nombre: "BODEGA ETIQUETADO TINAPA", tipo: "POR_PRODUCCION", valor: 0.25, unidad: "unidades" },
@@ -129,24 +129,6 @@ async function main() {
     { codigo: "CE", nombre: "Cu. PROCESO EMPAQUE OVAL", tipo: "POR_PRODUCCION", valor: 0.45, unidad: "kg" },
     { codigo: "CT", nombre: "Cu. PROCESO EMPAQUE TINAPA", tipo: "POR_PRODUCCION", valor: 0.75, unidad: "kg" },
     { codigo: "MA", nombre: "MAQUINA APOYO", tipo: "POR_HORA", valor: 2.00 },
-    
-    // Actividades de MULTAS
-    { codigo: "MB", nombre: "MULTA BODEGA", tipo: "POR_HORA", valor: 0 },
-    { codigo: "MM", nombre: "MULTA MAQUINA", tipo: "POR_HORA", valor: 0 },
-    { codigo: "MP", nombre: "MULTA PROCESO", tipo: "POR_HORA", valor: 0 },
-    
-    // Actividades de PAGO (Por Hora y Por Producción)
-    { codigo: "PB", nombre: "PAGO BODEGA ETIQUETADO", tipo: "POR_HORA", valor: 0 },
-    { codigo: "PH", nombre: "PAGO BODEGA HORAS", tipo: "POR_HORA", valor: 0 },
-    { codigo: "PL", nombre: "PAGO BODEGA LIMPIEZA", tipo: "POR_HORA", valor: 0 },
-    { codigo: "PC", nombre: "PAGO Cu. MAQUINA", tipo: "POR_HORA", valor: 0 },
-    { codigo: "PP", nombre: "PAGO Cu. PROCESO", tipo: "POR_HORA", valor: 0 },
-    { codigo: "PM", nombre: "PAGO Cu. PROCESO EMPAQUE OVAL", tipo: "POR_PRODUCCION", valor: 0, unidad: "kg" },
-    { codigo: "PX", nombre: "PAGO Cu. PROCESO EMPAQUE TINAPA", tipo: "POR_PRODUCCION", valor: 0, unidad: "kg" },
-    { codigo: "PQ", nombre: "PAGO MAQUINA", tipo: "POR_HORA", valor: 0 },
-    { codigo: "PE", nombre: "PAGO PROCESO EMPAQUE", tipo: "POR_PRODUCCION", valor: 0, unidad: "kg" },
-    { codigo: "PS", nombre: "PAGO PROCESO HORAS", tipo: "POR_HORA", valor: 0 },
-    { codigo: "PU", nombre: "PAGO SUPERVISOR", tipo: "POR_HORA", valor: 0 },
     
     // Otros roles
     { codigo: "PA", nombre: "PASTERO", tipo: "POR_HORA", valor: 2.50 },
@@ -165,7 +147,7 @@ async function main() {
         unidadMedida: act.unidad || null,
       },
     });
-    console.log(`✓ ${act.codigo}: ${act.nombre} (${act.tipo}) - S/ ${act.valor}${act.unidad ? ' por ' + act.unidad : ''}`);
+    console.log(`✓ ${act.codigo}: ${act.nombre} (${act.tipo}) - $ ${act.valor}${act.unidad ? ' por ' + act.unidad : ''}`);
   }
 
   // ==========================================
