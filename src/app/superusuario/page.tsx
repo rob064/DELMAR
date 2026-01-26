@@ -33,6 +33,15 @@ type Jornada = {
   activo: boolean;
 };
 
+type Usuario = {
+  id: string;
+  email: string;
+  nombre: string;
+  role: string;
+  activo: boolean;
+  createdAt: string;
+};
+
 const DIAS_SEMANA = [
   { value: 0, label: "Domingo" },
   { value: 1, label: "Lunes" },
@@ -46,6 +55,7 @@ const DIAS_SEMANA = [
 export default function SuperusuarioPage() {
   const [actividades, setActividades] = useState<Actividad[]>([]);
   const [jornadas, setJornadas] = useState<Jornada[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(false);
   
   // Estados para modal de actividad
@@ -73,22 +83,35 @@ export default function SuperusuarioPage() {
     esExcepcion: false,
   });
 
+  // Estados para modal de usuario
+  const [showUsuarioModal, setShowUsuarioModal] = useState(false);
+  const [editingUsuario, setEditingUsuario] = useState<Usuario | null>(null);
+  const [usuarioForm, setUsuarioForm] = useState({
+    email: "",
+    password: "",
+    nombre: "",
+    role: "TRABAJADOR",
+  });
+
   useEffect(() => {
     cargarDatos();
   }, []);
 
   const cargarDatos = async () => {
     try {
-      const [actRes, jorRes] = await Promise.all([
-        fetch("/api/actividades"),
+      const [actRes, jorRes, usuRes] = await Promise.all([
+        fetch("/api/actividades?incluirInactivos=true"),
         fetch("/api/jornadas"),
+        fetch("/api/usuarios"),
       ]);
       
       const actividadesData = await actRes.json();
       const jornadasData = await jorRes.json();
+      const usuariosData = await usuRes.json();
       
       setActividades(actividadesData);
       setJornadas(jornadasData);
+      setUsuarios(usuariosData);
     } catch (error) {
       console.error("Error al cargar datos:", error);
     }
@@ -284,13 +307,99 @@ export default function SuperusuarioPage() {
     }
   };
 
+  // Funciones para Usuarios
+  const abrirModalUsuario = (usuario?: Usuario) => {
+    if (usuario) {
+      setEditingUsuario(usuario);
+      setUsuarioForm({
+        email: usuario.email,
+        password: "",
+        nombre: usuario.nombre,
+        role: usuario.role,
+      });
+    } else {
+      setEditingUsuario(null);
+      setUsuarioForm({
+        email: "",
+        password: "",
+        nombre: "",
+        role: "TRABAJADOR",
+      });
+    }
+    setShowUsuarioModal(true);
+  };
+
+  const guardarUsuario = async () => {
+    if (!usuarioForm.email || !usuarioForm.nombre || !usuarioForm.role) {
+      alert("Complete los campos requeridos");
+      return;
+    }
+
+    if (!editingUsuario && !usuarioForm.password) {
+      alert("La contraseña es requerida para nuevos usuarios");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const url = editingUsuario
+        ? `/api/usuarios/${editingUsuario.id}`
+        : "/api/usuarios";
+      
+      const method = editingUsuario ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(usuarioForm),
+      });
+
+      if (res.ok) {
+        alert(`Usuario ${editingUsuario ? "actualizado" : "creado"} exitosamente`);
+        setShowUsuarioModal(false);
+        cargarDatos();
+      } else {
+        const error = await res.json();
+        alert(error.error || "Error al guardar usuario");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al guardar usuario");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleUsuario = async (id: string, activo: boolean) => {
+    if (!confirm(`¿Está seguro de ${activo ? "desactivar" : "activar"} este usuario?`)) return;
+
+    try {
+      const res = await fetch(`/api/usuarios/${id}`, {
+        method: activo ? "DELETE" : "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activo: !activo }),
+      });
+
+      if (res.ok) {
+        alert(`Usuario ${activo ? "desactivado" : "activado"} exitosamente`);
+        cargarDatos();
+      } else {
+        const error = await res.json();
+        alert(error.error || "Error al cambiar estado del usuario");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al cambiar estado del usuario");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-muted/30">
       <Navbar />
       <div className="container mx-auto p-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Configuración del Sistema</h1>
-          <p className="text-muted-foreground">Gestión de actividades y jornadas laborales</p>
+          <p className="text-muted-foreground">Gestión de actividades, jornadas y usuarios del sistema</p>
         </div>
 
         {/* Sección de Actividades */}
@@ -402,6 +511,68 @@ export default function SuperusuarioPage() {
                       variant="ghost"
                       size="icon"
                       onClick={() => eliminarJornada(jornada.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Sección de Usuarios */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Usuarios del Sistema</CardTitle>
+                <CardDescription>Gestionar usuarios y sus permisos</CardDescription>
+              </div>
+              <Button onClick={() => abrirModalUsuario()}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nuevo Usuario
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {usuarios.map((usuario) => (
+                <div
+                  key={usuario.id}
+                  className={`flex items-center justify-between border rounded-lg p-4 ${
+                    !usuario.activo ? "opacity-50" : ""
+                  }`}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium">{usuario.nombre}</span>
+                      <span className="text-sm text-muted-foreground">{usuario.email}</span>
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                        {usuario.role}
+                      </span>
+                      {!usuario.activo && (
+                        <span className="text-xs bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-2 py-1 rounded">
+                          Inactivo
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Creado: {new Date(usuario.createdAt).toLocaleDateString('es-EC')}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => abrirModalUsuario(usuario)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => toggleUsuario(usuario.id, usuario.activo)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -675,6 +846,105 @@ export default function SuperusuarioPage() {
                   <Button
                     variant="outline"
                     onClick={() => setShowJornadaModal(false)}
+                    className="flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Modal de Usuario */}
+        {showUsuarioModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>
+                    {editingUsuario ? "Editar Usuario" : "Nuevo Usuario"}
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowUsuarioModal(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={usuarioForm.email}
+                    onChange={(e) =>
+                      setUsuarioForm({ ...usuarioForm, email: e.target.value })
+                    }
+                    placeholder="usuario@delmar.com"
+                    disabled={!!editingUsuario}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="nombreUsuario">Nombre Completo *</Label>
+                  <Input
+                    id="nombreUsuario"
+                    value={usuarioForm.nombre}
+                    onChange={(e) =>
+                      setUsuarioForm({ ...usuarioForm, nombre: e.target.value })
+                    }
+                    placeholder="Nombre del usuario"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">
+                    Contraseña {editingUsuario ? "(dejar vacío para mantener)" : "*"}
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={usuarioForm.password}
+                    onChange={(e) =>
+                      setUsuarioForm({ ...usuarioForm, password: e.target.value })
+                    }
+                    placeholder={editingUsuario ? "••••••••" : "Contraseña"}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="roleUsuario">Rol *</Label>
+                  <select
+                    id="roleUsuario"
+                    value={usuarioForm.role}
+                    onChange={(e) =>
+                      setUsuarioForm({ ...usuarioForm, role: e.target.value })
+                    }
+                    className="w-full rounded-md border px-3 py-2 bg-background"
+                  >
+                    <option value="TRABAJADOR">Trabajador</option>
+                    <option value="PUERTA">Control de Puerta</option>
+                    <option value="PRODUCCION">Producción</option>
+                    <option value="FINANZAS">Finanzas</option>
+                    <option value="ADMIN">Administrador</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={guardarUsuario}
+                    disabled={loading}
+                    className="flex-1"
+                  >
+                    {editingUsuario ? "Actualizar" : "Crear"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowUsuarioModal(false)}
                     className="flex-1"
                   >
                     Cancelar

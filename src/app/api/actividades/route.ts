@@ -4,15 +4,18 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 // GET - Obtener todas las actividades
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const searchParams = request.nextUrl.searchParams;
+    const incluirInactivos = searchParams.get("incluirInactivos") === "true";
+
     const actividades = await prisma.actividad.findMany({
-      where: { activo: true },
+      where: incluirInactivos ? {} : { activo: true },
       orderBy: { nombre: "asc" },
     });
 
