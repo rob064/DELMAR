@@ -327,23 +327,53 @@ export default function PuertaPage() {
                 />
               </div>
 
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => registrarAsistencia("entrada")}
-                  disabled={loading || !selectedTrabajador}
-                  className="flex-1"
-                >
-                  Registrar Entrada
-                </Button>
-                <Button
-                  onClick={() => registrarAsistencia("salida")}
-                  disabled={loading || !selectedTrabajador}
-                  variant="secondary"
-                  className="flex-1"
-                >
-                  Registrar Salida
-                </Button>
-              </div>
+              {selectedTrabajador && (() => {
+                const asistencia = asistenciasHoy.find(a => a.trabajadorId === selectedTrabajador);
+                const tieneEntrada = asistencia?.horaEntrada;
+                const tieneSalida = asistencia?.horaSalida;
+
+                if (!tieneEntrada) {
+                  // No hay entrada -> mostrar solo botón de entrada
+                  return (
+                    <Button
+                      onClick={() => registrarAsistencia("entrada")}
+                      disabled={loading}
+                      className="w-full"
+                    >
+                      Registrar Entrada
+                    </Button>
+                  );
+                } else if (tieneEntrada && !tieneSalida) {
+                  // Hay entrada pero no salida -> mostrar solo botón de salida
+                  return (
+                    <Button
+                      onClick={() => registrarAsistencia("salida")}
+                      disabled={loading}
+                      variant="secondary"
+                      className="w-full"
+                    >
+                      Registrar Salida
+                    </Button>
+                  );
+                } else {
+                  // Ya tiene entrada y salida completas
+                  return (
+                    <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center">
+                      <p className="text-sm text-green-800 font-medium">
+                        ✓ Asistencia completa registrada para esta fecha
+                      </p>
+                    </div>
+                  );
+                }
+              })()}
+
+              {!selectedTrabajador && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Seleccione un trabajador para registrar asistencia
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
