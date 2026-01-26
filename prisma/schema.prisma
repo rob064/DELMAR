@@ -43,6 +43,11 @@ enum TipoTransaccion {
   AJUSTE
 }
 
+enum TipoTrabajador {
+  FIJO
+  EVENTUAL
+}
+
 // ==========================================
 // USUARIOS Y AUTENTICACIÓN
 // ==========================================
@@ -84,6 +89,19 @@ model Trabajador {
   // Estado
   activo            Boolean  @default(true)
   cuentaBancaria    String?
+  
+  // NUEVO: Tipo de trabajador
+  tipoTrabajador    TipoTrabajador @default(EVENTUAL)
+  
+  // NUEVO: Para trabajadores FIJOS
+  jornadaId         String?
+  jornada           Jornada?       @relation(fields: [jornadaId], references: [id])
+  
+  // Configuración salarial personalizada (opcional, si difiere de jornada)
+  salarioBasePersonalizado          Decimal? @db.Decimal(10, 2)
+  tarifaPorHoraPersonalizada        Decimal? @db.Decimal(10, 4)
+  multiplicadorSuplPersonalizado    Decimal? @db.Decimal(10, 2)
+  multiplicadorExtraPersonalizado   Decimal? @db.Decimal(10, 2)
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -140,8 +158,18 @@ model Jornada {
   esExcepcion       Boolean    @default(false) // Si es jornada excepcional
   activo            Boolean    @default(true)
   
+  // NUEVO: Configuración salarial estandarizada
+  salarioBaseMensual              Decimal    @default(433.33) @db.Decimal(10, 2)
+  tarifaPorHora                   Decimal    @default(2.71) @db.Decimal(10, 4)
+  multiplicadorHorasSuplementarias Decimal   @default(1.75) @db.Decimal(10, 2)
+  multiplicadorHorasExtra         Decimal    @default(2.50) @db.Decimal(10, 2)
+  horasDiariasBase                Decimal    @default(8.00) @db.Decimal(10, 2)
+  
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
+  
+  // NUEVO: Relación inversa
+  trabajadores      Trabajador[]
 
   @@map("jornadas")
 }
@@ -165,6 +193,13 @@ model Asistencia {
   
   estado            EstadoAsistencia  @default(PRESENTE)
   minutosRetraso    Int               @default(0)
+  
+  // NUEVO: Campos calculados para trabajadores FIJOS
+  horasTrabajadas         Decimal? @db.Decimal(10, 2) // Total de horas del día
+  horasNormales           Decimal? @db.Decimal(10, 2) // Dentro de jornada
+  horasSuplementarias     Decimal? @db.Decimal(10, 2) // Excedente días laborables
+  horasExtra              Decimal? @db.Decimal(10, 2) // Excedente fines de semana
+  montoCalculado          Decimal? @db.Decimal(10, 2) // Monto total del día
   
   // Justificaciones
   justificada       Boolean           @default(false)
@@ -263,13 +298,35 @@ model Pago {
   fechaInicio       DateTime   @db.Date
   fechaFin          DateTime   @db.Date
   
-  // Cálculos
+  // NUEVO: Tipo de trabajador
+  tipoTrabajador    String?    // "FIJO" o "EVENTUAL"
+  
+  // Cálculos para EVENTUALES (existente)
   totalHoras        Decimal    @default(0) @db.Decimal(10, 2)
   totalProduccion   Decimal    @default(0) @db.Decimal(10, 2)
   
+  // NUEVO: Cálculos para FIJOS
+  salarioBasePeriodo          Decimal? @db.Decimal(10, 2) // Base del periodo (mensual/quincenal)
+  
+  horasNormales               Decimal? @db.Decimal(10, 2)
+  horasSuplementarias         Decimal? @db.Decimal(10, 2)
+  horasExtra                  Decimal? @db.Decimal(10, 2)
+  
+  montoHorasNormales          Decimal? @db.Decimal(10, 2)
+  montoHorasSuplementarias    Decimal? @db.Decimal(10, 2)
+  montoHorasExtra             Decimal? @db.Decimal(10, 2)
+  
+  sueldoTrabajado             Decimal? @db.Decimal(10, 2) // Suma de todos los montos de horas
+  totalMultas                 Decimal  @default(0) @db.Decimal(10, 2) // Multas retardo/faltas
+  
+  // NUEVO: Bonificación (editable)
+  bonificacion                Decimal  @default(0) @db.Decimal(10, 2)
+  bonificacionCalculada       Decimal? @db.Decimal(10, 2) // Auto-calculada
+  conceptoBonificacion        String?  // Justificación
+  
   montoBase         Decimal    @default(0) @db.Decimal(10, 2)
   adelantos         Decimal    @default(0) @db.Decimal(10, 2)
-  multas            Decimal    @default(0) @db.Decimal(10, 2)
+  multas            Decimal    @default(0) @db.Decimal(10, 2) // Deprecated, usar totalMultas
   ajustes           Decimal    @default(0) @db.Decimal(10, 2)
   
   totalNeto         Decimal    @default(0) @db.Decimal(10, 2)
