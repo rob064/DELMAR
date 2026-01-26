@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { formatTime, formatDate, getLocalDateString } from "@/lib/utils";
+import { formatTime, formatDate, getLocalDateString, parseDateString } from "@/lib/utils";
 import { Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 
 interface Trabajador {
@@ -251,7 +251,7 @@ export default function PuertaPage() {
                   <Label htmlFor="turno">
                     {fechaSeleccionada === getLocalDateString()
                       ? "¿Qué turno trabajará hoy?"
-                      : `¿Qué turno trabajó el ${new Date(fechaSeleccionada).toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}?`}
+                      : `¿Qué turno trabajó el ${parseDateString(fechaSeleccionada).toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}?`}
                   </Label>
                   <select
                     id="turno"
@@ -351,7 +351,7 @@ export default function PuertaPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Asistencias del {formatDate(new Date(fechaSeleccionada))}</CardTitle>
+                  <CardTitle>Asistencias del {formatDate(parseDateString(fechaSeleccionada))}</CardTitle>
                   <CardDescription>
                     {asistenciasHoy.length} registro(s)
                   </CardDescription>
