@@ -213,9 +213,23 @@ export default function PuertaPage() {
       <Navbar />
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Control de Puerta</h1>
-            <p className="text-muted-foreground">Registro de asistencias</p>
+          <div className="flex items-center gap-6">
+            <div>
+              <h1 className="text-3xl font-bold">Control de Puerta</h1>
+              <p className="text-muted-foreground">Registro de asistencias</p>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border bg-background px-4 py-2">
+              <input
+                type="checkbox"
+                id="usarHoraManual"
+                checked={usarHoraManual}
+                onChange={(e) => setUsarHoraManual(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="usarHoraManual" className="cursor-pointer text-sm font-medium m-0">
+                Hora manual
+              </Label>
+            </div>
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold">{formatTime(horaActual)}</p>
@@ -275,14 +289,25 @@ export default function PuertaPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="horaActual">Hora actual</Label>
-                  <Input
-                    id="horaActual"
-                    type="text"
-                    value={formatTime(horaActual)}
-                    readOnly
-                    className="bg-muted"
-                  />
+                  <Label htmlFor="hora">{usarHoraManual ? "Hora específica" : "Hora actual"}</Label>
+                  {usarHoraManual ? (
+                    <Input
+                      id="hora"
+                      type="time"
+                      step="1"
+                      value={horaManual}
+                      onChange={(e) => setHoraManual(e.target.value)}
+                      className="bg-background"
+                    />
+                  ) : (
+                    <Input
+                      id="hora"
+                      type="text"
+                      value={formatTime(horaActual)}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -344,44 +369,6 @@ export default function PuertaPage() {
                   </select>
                 </div>
               )}
-
-              <div className="space-y-3 rounded-lg border bg-muted/50 p-4">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="usarHoraManual"
-                    checked={usarHoraManual}
-                    onChange={(e) => setUsarHoraManual(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300"
-                  />
-                  <Label htmlFor="usarHoraManual" className="cursor-pointer font-medium">
-                    Usar hora manual (registro retroactivo)
-                  </Label>
-                </div>
-
-                {usarHoraManual && (
-                  <div className="space-y-2">
-                    <Label htmlFor="horaManual">Hora específica</Label>
-                    <Input
-                      id="horaManual"
-                      type="time"
-                      step="1"
-                      value={horaManual}
-                      onChange={(e) => setHoraManual(e.target.value)}
-                      className="bg-background"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Se registrará con la hora seleccionada en lugar de la hora actual
-                    </p>
-                  </div>
-                )}
-
-                {!usarHoraManual && (
-                  <p className="text-xs text-muted-foreground">
-                    Se registrará con la hora actual del sistema: {formatTime(horaActual)}
-                  </p>
-                )}
-              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="observaciones">Observaciones (opcional)</Label>
