@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { trabajadorId, tipo, turnoProgramado, observaciones } = body; // tipo: 'entrada' o 'salida', turnoProgramado: "08:00-16:00"
+    const { trabajadorId, tipo, fecha, turnoProgramado, observaciones } = body; // tipo: 'entrada' o 'salida', turnoProgramado: "08:00-16:00"
 
     const trabajador = await prisma.trabajador.findUnique({
       where: { id: trabajadorId },
@@ -75,17 +75,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    // Usar la fecha proporcionada o la fecha actual
+    const fechaAsistencia = fecha ? new Date(fecha) : new Date();
+    fechaAsistencia.setHours(0, 0, 0, 0);
 
     const ahora = new Date();
 
-    // Buscar si ya existe una asistencia para hoy
+    // Buscar si ya existe una asistencia para esta fecha
     let asistencia = await prisma.asistencia.findUnique({
       where: {
         trabajadorId_fecha: {
           trabajadorId,
-          fecha: hoy,
+          fecha: fechaAsistencia,
         },
       },
     });
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
         asistencia = await prisma.asistencia.create({
           data: {
             trabajadorId,
-            fecha: hoy,
+            fecha: fechaAsistencia,
             horaEntrada: ahora,
             turnoProgramado,
             estado,
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest) {
       // Registrar salida
       if (!asistencia) {
         return NextResponse.json(
-          { error: "No se ha registrado entrada para hoy" },
+          { error: "No se ha registrado entrada para esta fecha" },
           { status: 400 }
         );
       }

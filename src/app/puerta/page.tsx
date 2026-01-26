@@ -20,6 +20,7 @@ interface Trabajador {
 interface Asistencia {
   id: string;
   fecha: string;
+  trabajadorId: string;
   horaEntrada: string | null;
   horaSalida: string | null;
   turnoProgramado: string | null;
@@ -35,6 +36,7 @@ interface Asistencia {
 export default function PuertaPage() {
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
   const [asistenciasHoy, setAsistenciasHoy] = useState<Asistencia[]>([]);
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date().toISOString().split("T")[0]);
   const [selectedTrabajador, setSelectedTrabajador] = useState<string>("");
   const [searchDni, setSearchDni] = useState("");
   const [turnoProgramado, setTurnoProgramado] = useState<string>("08:00-16:00");
@@ -51,7 +53,7 @@ export default function PuertaPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fechaSeleccionada]);
 
   const cargarTrabajadores = async () => {
     try {
@@ -65,8 +67,7 @@ export default function PuertaPage() {
 
   const cargarAsistenciasHoy = async () => {
     try {
-      const hoy = new Date().toISOString().split("T")[0];
-      const res = await fetch(`/api/asistencias?fecha=${hoy}`);
+      const res = await fetch(`/api/asistencias?fecha=${fechaSeleccionada}`);
       const data = await res.json();
       setAsistenciasHoy(data);
     } catch (error) {
@@ -80,6 +81,23 @@ export default function PuertaPage() {
       return;
     }
 
+    // Validar que no se registre salida sin entrada
+    if (tipo === "salida") {
+      const asistenciaExistente = asistenciasHoy.find(
+        (a) => a.trabajadorId === selectedTrabajador
+      );
+      
+      if (!asistenciaExistente || !asistenciaExistente.horaEntrada) {
+        alert("No se puede registrar salida sin una entrada previa en esta fecha");
+        return;
+      }
+      
+      if (asistenciaExistente.horaSalida) {
+        alert("Ya existe una salida registrada para este trabajador en esta fecha");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/asistencias", {
@@ -88,6 +106,7 @@ export default function PuertaPage() {
         body: JSON.stringify({
           trabajadorId: selectedTrabajador,
           tipo,
+          fecha: fechaSeleccionada,
           turnoProgramado: tipo === "entrada" ? turnoProgramado : undefined,
           observaciones,
         }),
@@ -153,6 +172,16 @@ export default function PuertaPage() {
               <CardDescription>Marcar entrada o salida de trabajador</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="fecha">Fecha</Label>
+                <Input
+                  id="fecha"
+                  type="date"
+                  value={fechaSeleccionada}
+                  onChange={(e) => setFechaSeleccionada(e.target.value)}
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="search">Buscar Trabajador (DNI o Nombre)</Label>
                 <Input
@@ -236,16 +265,26 @@ export default function PuertaPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Asistencias de Hoy</CardTitle>
-              <CardDescription>
-                {asistenciasHoy.length} registro(s) del día
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Asistencias del {formatDate(new Date(fechaSeleccionada))}</CardTitle>
+                  <CardDescription>
+                    {asistenciasHoy.length} registro(s)
+                  </CardDescription>
+                </div>
+                <Input
+                  type="date"
+                  value={fechaSeleccionada}
+                  onChange={(e) => setFechaSeleccionada(e.target.value)}
+                  className="w-40"
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="max-h-[500px] space-y-3 overflow-y-auto">
                 {asistenciasHoy.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
-                    No hay registros para hoy
+                    No hay registros para esta fecha
                   </p>
                 ) : (
                   asistenciasHoy.map((asistencia) => (
