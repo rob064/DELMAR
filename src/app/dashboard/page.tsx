@@ -84,72 +84,84 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
+          <Card className="border-l-4 border-blue-400/50 bg-blue-50/30 dark:bg-blue-950/20">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Trabajadores</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 bg-blue-100/50 dark:bg-blue-900/30 rounded-lg">
+                <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalTrabajadores}</div>
+              <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.totalTrabajadores}</div>
               <p className="text-xs text-muted-foreground">Trabajadores activos</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-green-400/50 bg-green-50/30 dark:bg-green-950/20">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Asistencias Hoy</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 bg-green-100/50 dark:bg-green-900/30 rounded-lg">
+                <Clock className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.asistenciasHoy}</div>
+              <div className="text-2xl font-bold text-green-700 dark:text-green-300">{stats.asistenciasHoy}</div>
               <p className="text-xs text-muted-foreground">
                 De {stats.totalTrabajadores} trabajadores
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-purple-400/50 bg-purple-50/30 dark:bg-purple-950/20">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Producción Hoy</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 bg-purple-100/50 dark:bg-purple-900/30 rounded-lg">
+                <Package className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.produccionHoy}</div>
+              <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{stats.produccionHoy}</div>
               <p className="text-xs text-muted-foreground">Registros de producción</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-amber-400/50 bg-amber-50/30 dark:bg-amber-950/20">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Pagos Pendientes</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 bg-amber-100/50 dark:bg-amber-900/30 rounded-lg">
+                <DollarSign className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.pagosPendientes}</div>
+              <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">{stats.pagosPendientes}</div>
               <p className="text-xs text-muted-foreground">Nóminas por pagar</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-indigo-400/50 bg-indigo-50/30 dark:bg-indigo-950/20">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Adelantos Pendientes</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 bg-indigo-100/50 dark:bg-indigo-900/30 rounded-lg">
+                <TrendingUp className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
                 {formatCurrency(stats.adelantosSinDescontar)}
               </div>
               <p className="text-xs text-muted-foreground">Por descontar</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-rose-400/50 bg-rose-50/30 dark:bg-rose-950/20">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Multas Pendientes</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 bg-rose-100/50 dark:bg-rose-900/30 rounded-lg">
+                <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-rose-700 dark:text-rose-300">
                 {formatCurrency(stats.multasSinDescontar)}
               </div>
               <p className="text-xs text-muted-foreground">Por descontar</p>
