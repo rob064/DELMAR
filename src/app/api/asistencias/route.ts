@@ -76,8 +76,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Usar la fecha proporcionada o la fecha actual
-    const fechaAsistencia = fecha ? new Date(fecha) : new Date();
-    fechaAsistencia.setHours(0, 0, 0, 0);
+    let fechaAsistencia: Date;
+    if (fecha) {
+      // Construir fecha en zona horaria local (no UTC)
+      const [year, month, day] = fecha.split('-').map(Number);
+      fechaAsistencia = new Date(year, month - 1, day, 0, 0, 0, 0);
+    } else {
+      fechaAsistencia = new Date();
+      fechaAsistencia.setHours(0, 0, 0, 0);
+    }
 
     // Usar hora personalizada o la hora actual
     let ahora: Date;
