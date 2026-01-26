@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { formatTime, formatDate } from "@/lib/utils";
+import { formatTime, formatDate, getLocalDateString } from "@/lib/utils";
 import { Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 
 interface Trabajador {
@@ -36,7 +36,7 @@ interface Asistencia {
 export default function PuertaPage() {
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
   const [asistenciasHoy, setAsistenciasHoy] = useState<Asistencia[]>([]);
-  const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date().toISOString().split("T")[0]);
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(getLocalDateString());
   const [selectedTrabajador, setSelectedTrabajador] = useState<string>("");
   const [searchDni, setSearchDni] = useState("");
   const [turnoProgramado, setTurnoProgramado] = useState<string>("08:00-16:00");
@@ -132,7 +132,7 @@ export default function PuertaPage() {
 
   // Verificar si un turno ya pasó (solo para fecha actual)
   const turnoYaPaso = (turno: string): boolean => {
-    if (fechaSeleccionada !== new Date().toISOString().split("T")[0]) {
+    if (fechaSeleccionada !== getLocalDateString()) {
       return false; // Si no es hoy, no bloquear ningún turno
     }
 
@@ -237,7 +237,7 @@ export default function PuertaPage() {
               {selectedTrabajador && (
                 <div className="space-y-2">
                   <Label htmlFor="turno">
-                    {fechaSeleccionada === new Date().toISOString().split("T")[0]
+                    {fechaSeleccionada === getLocalDateString()
                       ? "¿Qué turno trabajará hoy?"
                       : `¿Qué turno trabajó el ${new Date(fechaSeleccionada).toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}?`}
                   </Label>

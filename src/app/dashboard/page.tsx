@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getLocalDateString } from "@/lib/utils";
 import { Users, Clock, Package, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
 
 export default function DashboardPage() {
@@ -23,7 +23,7 @@ export default function DashboardPage() {
 
   const cargarEstadisticas = async () => {
     try {
-      const hoy = new Date().toISOString().split("T")[0];
+      const hoy = getLocalDateString();
 
       const [trabajadoresRes, asistenciasRes, produccionRes, pagosRes, transaccionesRes] =
         await Promise.all([

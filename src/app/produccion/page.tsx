@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDate, formatCurrency } from "@/lib/utils";
+import { formatDate, formatCurrency, getLocalDateString } from "@/lib/utils";
 import { Package, Plus } from "lucide-react";
 
 interface Trabajador {
@@ -48,10 +48,10 @@ export default function ProduccionPage() {
   const [produccionHoy, setProduccionHoy] = useState<Produccion[]>([]);
   
   // Fecha para el filtro de producción (lado derecho)
-  const [fechaFiltro, setFechaFiltro] = useState(new Date().toISOString().split("T")[0]);
+  const [fechaFiltro, setFechaFiltro] = useState(getLocalDateString());
   
   // Fecha para el formulario de registro (lado izquierdo)
-  const [fechaRegistro, setFechaRegistro] = useState(new Date().toISOString().split("T")[0]);
+  const [fechaRegistro, setFechaRegistro] = useState(getLocalDateString());
   
   const [selectedTrabajador, setSelectedTrabajador] = useState("");
   const [selectedActividad, setSelectedActividad] = useState("");
