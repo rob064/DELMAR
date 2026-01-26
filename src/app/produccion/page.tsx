@@ -55,6 +55,8 @@ export default function ProduccionPage() {
   
   const [selectedTrabajador, setSelectedTrabajador] = useState("");
   const [selectedActividad, setSelectedActividad] = useState("");
+  const [horaInicio, setHoraInicio] = useState("");
+  const [horaFin, setHoraFin] = useState("");
   const [horasTrabajadas, setHorasTrabajadas] = useState("");
   const [cantidadProducida, setCantidadProducida] = useState("");
   const [observaciones, setObservaciones] = useState("");
@@ -76,6 +78,31 @@ export default function ProduccionPage() {
   useEffect(() => {
     cargarDatos();
   }, [fechaFiltro]);
+
+  // Calcular horas trabajadas automáticamente cuando cambien hora inicio o hora fin
+  useEffect(() => {
+    const actividad = actividades.find((a) => a.id === selectedActividad);
+    
+    if (actividad?.tipoPago === "POR_HORA" && horaInicio && horaFin) {
+      const [horaI, minI] = horaInicio.split(":").map(Number);
+      const [horaF, minF] = horaFin.split(":").map(Number);
+      
+      const minutosInicio = horaI * 60 + minI;
+      const minutosFin = horaF * 60 + minF;
+      
+      let diferenciaMinutos = minutosFin - minutosInicio;
+      
+      // Si la hora fin es menor que la hora inicio, asumimos que cruzó la medianoche
+      if (diferenciaMinutos < 0) {
+        diferenciaMinutos += 24 * 60;
+      }
+      
+      const horas = (diferenciaMinutos / 60).toFixed(2);
+      setHorasTrabajadas(horas);
+    } else if (actividad?.tipoPago === "POR_HORA" && (!horaInicio || !horaFin)) {
+      setHorasTrabajadas("");
+    }
+  }, [horaInicio, horaFin, selectedActividad, actividades]);
 
   const cargarDatos = async () => {
     try {
@@ -106,14 +133,28 @@ export default function ProduccionPage() {
     const actividad = actividades.find((a) => a.id === selectedActividad);
     if (!actividad) return;
 
-    if (actividad.tipoPago === "POR_HORA" && !horasTrabajadas) {
-      alert("Por favor ingrese las horas trabajadas");
-      return;
+    // Validación para POR_HORA: debe tener hora inicio y hora fin
+    if (actividad.tipoPago === "POR_HORA") {
+      if (!horaInicio || !horaFin) {
+        alert("Por favor ingrese hora de inicio y hora de fin");
+        return;
+      }
+      if (!horasTrabajadas || parseFloat(horasTrabajadas) <= 0) {
+        alert("Las horas trabajadas deben ser mayores a 0");
+        return;
+      }
     }
 
-    if (actividad.tipoPago === "POR_PRODUCCION" && !cantidadProducida) {
-      alert("Por favor ingrese la cantidad producida");
-      return;
+    // Validación para POR_PRODUCCION: debe tener al menos hora inicio
+    if (actividad.tipoPago === "POR_PRODUCCION") {
+      if (!horaInicio) {
+        alert("Por favor ingrese al menos la hora de inicio");
+        return;
+      }
+      if (!cantidadProducida) {
+        alert("Por favor ingrese la cantidad producida");
+        return;
+      }
     }
 
     setLoading(true);
@@ -125,6 +166,8 @@ export default function ProduccionPage() {
           trabajadorId: selectedTrabajador,
           actividadId: selectedActividad,
           fecha: fechaRegistro,
+          horaInicio: horaInicio ? `${fechaRegistro}T${horaInicio}:00` : null,
+          horaFin: horaFin ? `${fechaRegistro}T${horaFin}:00` : null,
           horasTrabajadas: horasTrabajadas || null,
           cantidadProducida: cantidadProducida || null,
           observaciones,
@@ -135,6 +178,8 @@ export default function ProduccionPage() {
         alert("Producción registrada exitosamente");
         setSelectedTrabajador("");
         setSelectedActividad("");
+        setHoraInicio("");
+        setHoraFin("");
         setHorasTrabajadas("");
         setCantidadProducida("");
         setObservaciones("");
@@ -257,42 +302,90 @@ export default function ProduccionPage() {
               </div>
 
               {actividadSeleccionada?.tipoPago === "POR_HORA" && (
-                <div className="space-y-2">
-                  <Label>Horas Trabajadas</Label>
-                  <Input
-                    type="number"
-                    step="0.5"
-                    placeholder="8.0"
-                    value={horasTrabajadas}
-                    onChange={(e) => setHorasTrabajadas(e.target.value)}
-                  />
-                  {actividadSeleccionada.tarifaPorHora && (
-                    <p className="text-sm text-muted-foreground">
-                      Tarifa: {formatCurrency(actividadSeleccionada.tarifaPorHora)}/hora
-                    </p>
-                  )}
-                </div>
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Hora Inicio *</Label>
+                      <Input
+                        type="time"
+                        value={horaInicio}
+                        onChange={(e) => setHoraInicio(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Hora Fin *</Label>
+                      <Input
+                        type="time"
+                        value={horaFin}
+                        onChange={(e) => setHoraFin(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Horas Trabajadas (calculado)</Label>
+                    <Input
+                      type="text"
+                      value={horasTrabajadas}
+                      readOnly
+                      className="bg-gray-50"
+                      placeholder="Se calcula automáticamente"
+                    />
+                    {actividadSeleccionada.tarifaPorHora && horasTrabajadas && (
+                      <p className="text-sm text-muted-foreground">
+                        Tarifa: {formatCurrency(actividadSeleccionada.tarifaPorHora)}/hora
+                        {" → "}Total: {formatCurrency((parseFloat(horasTrabajadas) * parseFloat(actividadSeleccionada.tarifaPorHora)).toString())}
+                      </p>
+                    )}
+                  </div>
+                </>
               )}
 
               {actividadSeleccionada?.tipoPago === "POR_PRODUCCION" && (
-                <div className="space-y-2">
-                  <Label>
-                    Cantidad Producida
-                    {actividadSeleccionada.unidadMedida && ` (${actividadSeleccionada.unidadMedida})`}
-                  </Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="100"
-                    value={cantidadProducida}
-                    onChange={(e) => setCantidadProducida(e.target.value)}
-                  />
-                  {actividadSeleccionada.tarifaPorUnidad && (
-                    <p className="text-sm text-muted-foreground">
-                      Tarifa: {formatCurrency(actividadSeleccionada.tarifaPorUnidad)}/{actividadSeleccionada.unidadMedida}
-                    </p>
-                  )}
-                </div>
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Hora Inicio *</Label>
+                      <Input
+                        type="time"
+                        value={horaInicio}
+                        onChange={(e) => setHoraInicio(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Hora Fin (opcional)</Label>
+                      <Input
+                        type="time"
+                        value={horaFin}
+                        onChange={(e) => setHoraFin(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>
+                      Cantidad Producida *
+                      {actividadSeleccionada.unidadMedida && ` (${actividadSeleccionada.unidadMedida})`}
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="100"
+                      value={cantidadProducida}
+                      onChange={(e) => setCantidadProducida(e.target.value)}
+                      required
+                    />
+                    {actividadSeleccionada.tarifaPorUnidad && cantidadProducida && (
+                      <p className="text-sm text-muted-foreground">
+                        Tarifa: {formatCurrency(actividadSeleccionada.tarifaPorUnidad)}/{actividadSeleccionada.unidadMedida}
+                        {" → "}Total: {formatCurrency((parseFloat(cantidadProducida) * parseFloat(actividadSeleccionada.tarifaPorUnidad)).toString())}
+                      </p>
+                    )}
+                  </div>
+                </>
               )}
 
               <div className="space-y-2">
