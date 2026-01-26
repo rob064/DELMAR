@@ -14,6 +14,7 @@ import {
   Users,
   LogOut,
   User,
+  Settings,
 } from "lucide-react";
 
 const routes = {
@@ -23,6 +24,7 @@ const routes = {
     { href: "/produccion", label: "Producción", icon: Package },
     { href: "/finanzas", label: "Finanzas", icon: DollarSign },
     { href: "/trabajadores", label: "Trabajadores", icon: Users },
+    { href: "/superusuario", label: "Configuración", icon: Settings },
   ],
   PUERTA: [{ href: "/puerta", label: "Control de Puerta", icon: DoorOpen }],
   PRODUCCION: [

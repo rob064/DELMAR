@@ -120,6 +120,33 @@ model Actividad {
 }
 
 // ==========================================
+// JORNADAS LABORALES
+// ==========================================
+
+model Jornada {
+  id                String     @id @default(cuid())
+  nombre            String     // Ej: "Turno Mañana", "Turno Tarde"
+  horaInicio        String     // Formato "HH:MM"
+  horaFin           String     // Formato "HH:MM"
+  
+  // Días de la semana (0=Domingo, 1=Lunes, ..., 6=Sábado)
+  // Si está vacío, se aplica a todos los días
+  diasSemana        Int[]      // [1,2,3,4,5] para lunes a viernes
+  
+  // Fechas específicas (excepciones)
+  fechaInicio       DateTime?  @db.Date  // Para jornadas excepcionales
+  fechaFin          DateTime?  @db.Date  // Para rangos excepcionales
+  
+  esExcepcion       Boolean    @default(false) // Si es jornada excepcional
+  activo            Boolean    @default(true)
+  
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@map("jornadas")
+}
+
+// ==========================================
 // ASISTENCIAS (MÓDULO PUERTA)
 // ==========================================
 
