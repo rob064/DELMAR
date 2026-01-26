@@ -20,7 +20,11 @@ export async function GET(request: NextRequest) {
     const where: any = {};
 
     if (fecha) {
-      where.fecha = new Date(fecha);
+      // Normalizar fecha correctamente para búsqueda
+      const [year, month, day] = fecha.includes('-') 
+        ? fecha.split('-').map(Number) 
+        : fecha.split('/').reverse().map(Number);
+      where.fecha = new Date(year, month - 1, day, 0, 0, 0, 0);
     }
 
     if (trabajadorId) {
@@ -84,8 +88,18 @@ export async function POST(request: NextRequest) {
       observaciones,
     } = body;
 
-    const fechaProduccion = fecha ? new Date(fecha) : new Date();
-    fechaProduccion.setHours(0, 0, 0, 0);
+    // Normalizar fecha correctamente en zona horaria local (Ecuador)
+    let fechaProduccion: Date;
+    if (fecha) {
+      // Construir fecha desde string YYYY-MM-DD o DD/MM/YYYY
+      const [year, month, day] = fecha.includes('-') 
+        ? fecha.split('-').map(Number) 
+        : fecha.split('/').reverse().map(Number);
+      fechaProduccion = new Date(year, month - 1, day, 0, 0, 0, 0);
+    } else {
+      fechaProduccion = new Date();
+      fechaProduccion.setHours(0, 0, 0, 0);
+    }
 
     // Obtener la actividad para calcular el monto y validar tipo
     const actividad = await prisma.actividad.findUnique({
