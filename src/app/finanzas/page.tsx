@@ -109,9 +109,9 @@ export default function FinanzasPage() {
       const transaccionesData = await transaccionesRes.json();
       const pagosData = await pagosRes.json();
 
-      setTrabajadores(trabajadoresData);
-      setTransacciones(transaccionesData);
-      setPagos(pagosData);
+      setTrabajadores(Array.isArray(trabajadoresData) ? trabajadoresData : []);
+      setTransacciones(Array.isArray(transaccionesData) ? transaccionesData : []);
+      setPagos(Array.isArray(pagosData) ? pagosData : []);
     } catch (error) {
       console.error("Error al cargar datos:", error);
     }
