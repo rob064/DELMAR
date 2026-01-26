@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UserPlus, Edit, Trash2 } from "lucide-react";
+import { validarCedulaEcuatoriana } from "@/lib/validaciones";
 
 interface Trabajador {
   id: string;
   nombres: string;
   apellidos: string;
-  dni: string;
+  dni: string; // Cédula ecuatoriana
   telefono?: string;
   direccion?: string;
   activo: boolean;
@@ -93,6 +94,13 @@ export default function TrabajadoresPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validar cédula ecuatoriana
+    if (!validarCedulaEcuatoriana(formData.dni)) {
+      alert("La cédula ingresada no es válida. Debe ser una cédula ecuatoriana de 10 dígitos.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -282,7 +290,7 @@ export default function TrabajadoresPage() {
                             {trabajador.nombres} {trabajador.apellidos}
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            DNI: {trabajador.dni}
+                            Cédula: {trabajador.dni}
                           </p>
                           <span className={`text-xs px-2 py-1 rounded ${
                             trabajador.tipoTrabajador === "FIJO"
@@ -408,14 +416,17 @@ export default function TrabajadoresPage() {
 
                     <div className="space-y-2">
                       <Label htmlFor="dni">
-                        DNI <span className="text-red-500">*</span>
+                        Cédula <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         id="dni"
                         name="dni"
                         value={formData.dni}
                         onChange={handleChange}
-                        maxLength={8}
+                        maxLength={10}
+                        placeholder="0123456789"
+                        pattern="[0-9]{10}"
+                        title="Debe ingresar una cédula ecuatoriana válida de 10 dígitos"
                         required
                       />
                     </div>

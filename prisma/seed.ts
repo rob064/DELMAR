@@ -1,247 +1,274 @@
 import { PrismaClient } from "@prisma/client";
-import * as bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Iniciando seed de la base de datos...\n");
+  console.log("🌱 Iniciando seed de base de datos...");
 
-  // ==========================================
-  // LIMPIAR BASE DE DATOS
-  // ==========================================
-  console.log("🗑️  Limpiando base de datos...");
-  await prisma.produccionDiaria.deleteMany();
+  // Limpiar datos (excepto usuarios y trabajadores, los recrearemos)
+  console.log("🗑️  Limpiando datos existentes...");
+  
+  await prisma.abono.deleteMany();
   await prisma.pago.deleteMany();
   await prisma.transaccion.deleteMany();
+  await prisma.produccionDiaria.deleteMany();
   await prisma.asistencia.deleteMany();
   await prisma.actividad.deleteMany();
   await prisma.trabajador.deleteMany();
+  await prisma.jornada.deleteMany();
   await prisma.usuario.deleteMany();
 
-  // ==========================================
-  // USUARIOS Y ROLES
-  // ==========================================
-  console.log("\n👤 Creando usuarios...");
-  const hashedPassword = await bcrypt.hash("admin123", 10);
+  // Hash de contraseña común para testing
+  const hashedPassword = await bcrypt.hash("123456", 10);
 
-  const adminUser = await prisma.usuario.create({
+  console.log("👤 Creando usuarios del sistema...");
+
+  // 1. Superadministrador
+  const superadmin = await prisma.usuario.create({
     data: {
       email: "admin@delmar.com",
       password: hashedPassword,
-      nombre: "Administrador",
+      nombre: "Roberto",
       role: "ADMIN",
     },
   });
-  console.log("✓ Admin creado: admin@delmar.com / admin123");
+  console.log("✅ Superadministrador creado");
 
-  const puertaUser = await prisma.usuario.create({
+  // 2. Supervisor de Puerta
+  const puerta = await prisma.usuario.create({
     data: {
       email: "puerta@delmar.com",
-      password: await bcrypt.hash("puerta123", 10),
-      nombre: "Control Puerta",
+      password: hashedPassword,
+      nombre: "Carlos Portero",
       role: "PUERTA",
     },
   });
-  console.log("✓ Puerta creado: puerta@delmar.com / puerta123");
+  console.log("✅ Usuario PUERTA creado");
 
-  const produccionUser = await prisma.usuario.create({
+  // 3. Supervisor de Producción
+  const produccion = await prisma.usuario.create({
     data: {
       email: "produccion@delmar.com",
-      password: await bcrypt.hash("produccion123", 10),
-      nombre: "Control Producción",
+      password: hashedPassword,
+      nombre: "María Supervisora",
       role: "PRODUCCION",
     },
   });
-  console.log("✓ Producción creado: produccion@delmar.com / produccion123");
+  console.log("✅ Usuario PRODUCCION creado");
 
-  const finanzasUser = await prisma.usuario.create({
+  // 4. Encargado de Finanzas
+  const finanzas = await prisma.usuario.create({
     data: {
       email: "finanzas@delmar.com",
-      password: await bcrypt.hash("finanzas123", 10),
-      nombre: "Control Finanzas",
+      password: hashedPassword,
+      nombre: "Juan Contador",
       role: "FINANZAS",
     },
   });
-  console.log("✓ Finanzas creado: finanzas@delmar.com / finanzas123");
+  console.log("✅ Usuario FINANZAS creado");
 
-  // ==========================================
-  // TRABAJADORES DE PRUEBA
-  // ==========================================
-  console.log("\n👷 Creando trabajadores de prueba...");
+  console.log("⏰ Creando jornadas laborales...");
 
-  const trabajador1User = await prisma.usuario.create({
+  // Crear jornadas
+  const jornadaMatutina = await prisma.jornada.create({
     data: {
-      email: "juan.perez@delmar.com",
-      password: await bcrypt.hash("123456", 10),
-      nombre: "Juan Pérez García",
+      nombre: "Matutina",
+      horaInicio: "08:00",
+      horaFin: "17:00",
+      horasDiariasBase: 8.0,
+      salarioBaseMensual: 433.33,
+      tarifaPorHora: 2.71,
+      multiplicadorHorasSuplementarias: 1.75,
+      multiplicadorHorasExtra: 2.50,
+      activo: true,
+    },
+  });
+
+  const jornadaNocturna = await prisma.jornada.create({
+    data: {
+      nombre: "Nocturna",
+      horaInicio: "20:00",
+      horaFin: "05:00",
+      horasDiariasBase: 8.0,
+      salarioBaseMensual: 500.00,
+      tarifaPorHora: 3.13,
+      multiplicadorHorasSuplementarias: 1.75,
+      multiplicadorHorasExtra: 2.50,
+      activo: true,
+    },
+  });
+
+  console.log("✅ Jornadas creadas");
+
+  console.log("👷 Creando trabajadores...");
+
+  // TRABAJADOR EVENTUAL 1
+  const userEventual1 = await prisma.usuario.create({
+    data: {
+      email: "eventual1@delmar.com",
+      password: hashedPassword,
+      nombre: "Pedro Eventual",
       role: "TRABAJADOR",
     },
   });
 
-  const trabajador1 = await prisma.trabajador.create({
+  await prisma.trabajador.create({
     data: {
-      usuarioId: trabajador1User.id,
-      nombres: "Juan Carlos",
-      apellidos: "Pérez García",
-      dni: "45678901",
-      telefono: "987654321",
-      direccion: "Av. Principal 123, Lima",
+      usuarioId: userEventual1.id,
+      nombres: "Pedro",
+      apellidos: "García López",
+      dni: "0926543210",
+      telefono: "0987654321",
+      direccion: "Manta, Ecuador",
+      tipoTrabajador: "EVENTUAL",
+      activo: true,
     },
   });
-  console.log("✓ Trabajador 1: Juan Pérez (DNI: 45678901)");
+  console.log("✅ Trabajador EVENTUAL 1 creado");
 
-  const trabajador2User = await prisma.usuario.create({
+  // TRABAJADOR EVENTUAL 2
+  const userEventual2 = await prisma.usuario.create({
     data: {
-      email: "maria.lopez@delmar.com",
-      password: await bcrypt.hash("123456", 10),
-      nombre: "María López Torres",
+      email: "eventual2@delmar.com",
+      password: hashedPassword,
+      nombre: "Luis Eventual",
       role: "TRABAJADOR",
     },
   });
 
-  const trabajador2 = await prisma.trabajador.create({
+  await prisma.trabajador.create({
     data: {
-      usuarioId: trabajador2User.id,
-      nombres: "María Isabel",
-      apellidos: "López Torres",
-      dni: "45678902",
-      telefono: "987654322",
-      direccion: "Jr. Los Pinos 456, Lima",
+      usuarioId: userEventual2.id,
+      nombres: "Luis",
+      apellidos: "Mendoza Vera",
+      dni: "1305678901",
+      telefono: "0991234567",
+      direccion: "Manta, Ecuador",
+      tipoTrabajador: "EVENTUAL",
+      activo: true,
     },
   });
-  console.log("✓ Trabajador 2: María López (DNI: 45678902)");
+  console.log("✅ Trabajador EVENTUAL 2 creado");
 
-  // ==========================================
-  // ACTIVIDADES DE PRODUCCIÓN
-  // ==========================================
-  console.log("\n📦 Creando actividades de producción...");
-
-  const actividades = [
-    // Actividades de BODEGA
-    { codigo: "BA", nombre: "BODEGA APOYO", tipo: "POR_HORA", valor: 2.00 },
-    { codigo: "BE", nombre: "BODEGA ETIQUETADO OVAL", tipo: "POR_PRODUCCION", valor: 0.19, unidad: "unidades" },
-    { codigo: "BT", nombre: "BODEGA ETIQUETADO TINAPA", tipo: "POR_PRODUCCION", valor: 0.25, unidad: "unidades" },
-    { codigo: "BL", nombre: "BODEGA LIMPIEZA OVAL", tipo: "POR_PRODUCCION", valor: 0.30, unidad: "unidades" },
-    
-    // Actividades de CUARTO (Por Hora y Por Producción)
-    { codigo: "CM", nombre: "Cu. MAQUINA", tipo: "POR_HORA", valor: 2.00 },
-    { codigo: "CP", nombre: "Cu. PROCESO", tipo: "POR_HORA", valor: 2.00 },
-    { codigo: "CE", nombre: "Cu. PROCESO EMPAQUE OVAL", tipo: "POR_PRODUCCION", valor: 0.45, unidad: "kg" },
-    { codigo: "CT", nombre: "Cu. PROCESO EMPAQUE TINAPA", tipo: "POR_PRODUCCION", valor: 0.75, unidad: "kg" },
-    { codigo: "MA", nombre: "MAQUINA APOYO", tipo: "POR_HORA", valor: 2.00 },
-    
-    // Otros roles
-    { codigo: "PA", nombre: "PASTERO", tipo: "POR_HORA", valor: 2.50 },
-    { codigo: "PR", nombre: "PROCESO APOYO", tipo: "POR_HORA", valor: 2.00 },
-    { codigo: "PO", nombre: "PROCESO EMPAQUE OVAL", tipo: "POR_PRODUCCION", valor: 0.42, unidad: "kg" },
-    { codigo: "SU", nombre: "SUPERVISOR", tipo: "POR_HORA", valor: 2.25 },
-  ];
-
-  for (const act of actividades) {
-    await prisma.actividad.create({
-      data: {
-        codigo: act.codigo,
-        nombre: act.nombre,
-        tipoPago: act.tipo as any,
-        valor: act.valor,
-        unidadMedida: act.unidad || null,
-      },
-    });
-    console.log(`✓ ${act.codigo}: ${act.nombre} (${act.tipo}) - $ ${act.valor}${act.unidad ? ' por ' + act.unidad : ''}`);
-  }
-
-  // ==========================================
-  // ASISTENCIAS DE PRUEBA
-  // ==========================================
-  console.log("\n📋 Creando asistencias de prueba...");
-
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-
-  const entrada1 = new Date();
-  entrada1.setHours(8, 5, 0, 0);
-
-  await prisma.asistencia.create({
+  // TRABAJADOR FIJO 1
+  const userFijo1 = await prisma.usuario.create({
     data: {
-      trabajadorId: trabajador1.id,
-      fecha: hoy,
-      horaEntrada: entrada1,
-      turnoProgramado: "08:00-16:00",
-      estado: "TARDE",
-      minutosRetraso: 5,
+      email: "fijo1@delmar.com",
+      password: hashedPassword,
+      nombre: "Ana Fija",
+      role: "TRABAJADOR",
     },
   });
-  console.log("✓ Asistencia de Juan (llegó a las 08:05)");
 
-  const entrada2 = new Date();
-  entrada2.setHours(7, 55, 0, 0);
-
-  await prisma.asistencia.create({
+  await prisma.trabajador.create({
     data: {
-      trabajadorId: trabajador2.id,
-      fecha: hoy,
-      horaEntrada: entrada2,
-      turnoProgramado: "08:00-16:00",
-      estado: "PRESENTE",
-      minutosRetraso: 0,
+      usuarioId: userFijo1.id,
+      nombres: "Ana",
+      apellidos: "Martínez Suárez",
+      dni: "1312345678",
+      telefono: "0998765432",
+      direccion: "Manta, Ecuador",
+      tipoTrabajador: "FIJO",
+      jornadaId: jornadaMatutina.id,
+      activo: true,
     },
   });
-  console.log("✓ Asistencia de María (llegó a las 07:55)");
+  console.log("✅ Trabajador FIJO 1 creado (Jornada Matutina)");
 
-  // ==========================================
-  // PRODUCCIÓN DE PRUEBA
-  // ==========================================
-  console.log("\n🏭 Creando registros de producción de prueba...");
-
-  const actividadDescarga = await prisma.actividad.findFirst({
-    where: { codigo: "BA" },
+  // TRABAJADOR FIJO 2
+  const userFijo2 = await prisma.usuario.create({
+    data: {
+      email: "fijo2@delmar.com",
+      password: hashedPassword,
+      nombre: "Carlos Fijo",
+      role: "TRABAJADOR",
+    },
   });
 
-  if (actividadDescarga) {
-    await prisma.produccionDiaria.create({
-      data: {
-        trabajadorId: trabajador1.id,
-        actividadId: actividadDescarga.id,
-        fecha: hoy,
-        horasTrabajadas: 8,
-        montoGenerado: 16.00, // 8 horas * 2.00
-      },
-    });
-    console.log("✓ Producción de Juan: 8 horas de Bodega Apoyo (S/ 16.00)");
-  }
+  await prisma.trabajador.create({
+    data: {
+      usuarioId: userFijo2.id,
+      nombres: "Carlos",
+      apellidos: "Rodríguez Zambrano",
+      dni: "0912345678",
+      telefono: "0987123456",
+      direccion: "Manta, Ecuador",
+      tipoTrabajador: "FIJO",
+      jornadaId: jornadaNocturna.id,
+      activo: true,
+    },
+  });
+  console.log("✅ Trabajador FIJO 2 creado (Jornada Nocturna)");
 
-  const actividadEmpaque = await prisma.actividad.findFirst({
-    where: { codigo: "PO" },
+  console.log("🎣 Creando actividades de producción...");
+
+  // Crear actividades
+  await prisma.actividad.create({
+    data: {
+      codigo: "DESC-PESC",
+      nombre: "Descarga de Pescado",
+      descripcion: "Descarga de pescado del barco",
+      tipoPago: "POR_HORA",
+      valor: 3.50,
+      activo: true,
+    },
   });
 
-  if (actividadEmpaque) {
-    await prisma.produccionDiaria.create({
-      data: {
-        trabajadorId: trabajador2.id,
-        actividadId: actividadEmpaque.id,
-        fecha: hoy,
-        cantidadProducida: 50,
-        montoGenerado: 21.00, // 50 kg * 0.42
-      },
-    });
-    console.log("✓ Producción de María: 50 kg de Proceso Empaque Oval (S/ 21.00)");
-  }
+  await prisma.actividad.create({
+    data: {
+      codigo: "LIMP-PESC",
+      nombre: "Limpieza de Pescado",
+      descripcion: "Limpieza y eviscerado",
+      tipoPago: "POR_HORA",
+      valor: 3.00,
+      activo: true,
+    },
+  });
 
-  console.log("\n✅ Seed completado exitosamente!");
-  console.log("\n📝 Resumen de credenciales:");
-  console.log("════════════════════════════════════════════");
-  console.log("Admin:      admin@delmar.com / admin123");
-  console.log("Puerta:     puerta@delmar.com / puerta123");
-  console.log("Producción: produccion@delmar.com / produccion123");
-  console.log("Finanzas:   finanzas@delmar.com / finanzas123");
-  console.log("Trabajador: juan.perez@delmar.com / 123456");
-  console.log("Trabajador: maria.lopez@delmar.com / 123456");
-  console.log("════════════════════════════════════════════\n");
+  await prisma.actividad.create({
+    data: {
+      codigo: "EMPAQUE",
+      nombre: "Empaque",
+      descripcion: "Empaque de producto terminado",
+      tipoPago: "POR_PRODUCCION",
+      valor: 0.50,
+      unidadMedida: "caja",
+      activo: true,
+    },
+  });
+
+  await prisma.actividad.create({
+    data: {
+      codigo: "CARG-HIELO",
+      nombre: "Carga de Hielo",
+      descripcion: "Carga de hielo en bodegas",
+      tipoPago: "POR_HORA",
+      valor: 2.50,
+      activo: true,
+    },
+  });
+
+  console.log("✅ Actividades creadas");
+
+  console.log("\n✨ Seed completado exitosamente!");
+  console.log("\n📋 Credenciales de acceso:");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("ADMIN:      admin@delmar.com      / 123456");
+  console.log("PUERTA:     puerta@delmar.com     / 123456");
+  console.log("PRODUCCION: produccion@delmar.com / 123456");
+  console.log("FINANZAS:   finanzas@delmar.com   / 123456");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("EVENTUAL 1: eventual1@delmar.com  / 123456");
+  console.log("EVENTUAL 2: eventual2@delmar.com  / 123456");
+  console.log("FIJO 1:     fijo1@delmar.com      / 123456");
+  console.log("FIJO 2:     fijo2@delmar.com      / 123456");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 }
 
 main()
   .catch((e) => {
-    console.error("❌ Error durante el seed:", e);
+    console.error("❌ Error en seed:", e);
     process.exit(1);
   })
   .finally(async () => {
