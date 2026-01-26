@@ -109,11 +109,14 @@ export default function SuperusuarioPage() {
       const jornadasData = await jorRes.json();
       const usuariosData = await usuRes.json();
       
-      setActividades(actividadesData);
-      setJornadas(jornadasData);
-      setUsuarios(usuariosData);
+      setActividades(Array.isArray(actividadesData) ? actividadesData : []);
+      setJornadas(Array.isArray(jornadasData) ? jornadasData : []);
+      setUsuarios(Array.isArray(usuariosData) ? usuariosData : []);
     } catch (error) {
       console.error("Error al cargar datos:", error);
+      setActividades([]);
+      setJornadas([]);
+      setUsuarios([]);
     }
   };
 
