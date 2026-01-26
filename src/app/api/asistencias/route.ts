@@ -4,6 +4,56 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { calcularMinutosRetraso } from "@/lib/utils";
 
+// Helper para calcular horas trabajadas de trabajadores FIJOS
+function calcularHorasTrabajador(
+  horaEntrada: Date,
+  horaSalida: Date,
+  horasDiariasBase: number,
+  tarifaPorHora: number,
+  multiplicadorSupl: number,
+  multiplicadorExtra: number,
+  esFindeSemana: boolean
+) {
+  // Calcular total de horas trabajadas
+  const diffMs = horaSalida.getTime() - horaEntrada.getTime();
+  const horasTrabajadas = diffMs / (1000 * 60 * 60);
+
+  let horasNormales = 0;
+  let horasSuplementarias = 0;
+  let horasExtra = 0;
+
+  if (horasTrabajadas <= horasDiariasBase) {
+    // Trabajó dentro de la jornada
+    horasNormales = horasTrabajadas;
+  } else {
+    // Trabajó más de la jornada base
+    horasNormales = horasDiariasBase;
+    const horasExcedentes = horasTrabajadas - horasDiariasBase;
+
+    if (esFindeSemana) {
+      // Fin de semana: excedente es hora extra
+      horasExtra = horasExcedentes;
+    } else {
+      // Día laborable: excedente es hora suplementaria
+      horasSuplementarias = horasExcedentes;
+    }
+  }
+
+  // Calcular montos por tipo de hora
+  const montoHorasNormales = horasNormales * tarifaPorHora;
+  const montoHorasSuplementarias = horasSuplementarias * tarifaPorHora * multiplicadorSupl;
+  const montoHorasExtra = horasExtra * tarifaPorHora * multiplicadorExtra;
+  const montoCalculado = montoHorasNormales + montoHorasSuplementarias + montoHorasExtra;
+
+  return {
+    horasTrabajadas,
+    horasNormales,
+    horasSuplementarias,
+    horasExtra,
+    montoCalculado,
+  };
+}
+
 // GET - Obtener asistencias (con filtros opcionales)
 export async function GET(request: NextRequest) {
   try {
@@ -193,6 +243,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Actualizar asistencia con hora de salida
       asistencia = await prisma.asistencia.update({
         where: { id: asistencia.id },
         data: {
@@ -200,6 +251,50 @@ export async function POST(request: NextRequest) {
           observaciones,
         },
       });
+
+      // Si es trabajador FIJO, calcular campos automáticos
+      const trabajador = await prisma.trabajador.findUnique({
+        where: { id: trabajadorId },
+        include: { jornada: true },
+      });
+
+      if (trabajador?.tipoTrabajador === "FIJO" && trabajador.jornada && asistencia.horaEntrada) {
+        // Determinar si es fin de semana (0=domingo, 6=sábado)
+        const diaSemana = fecha.getDay();
+        const esFindeSemana = diaSemana === 0 || diaSemana === 6;
+
+        // Obtener configuración salarial (personalizada o estándar)
+        const tarifaPorHora = trabajador.tarifaPorHoraPersonalizada 
+          ?? trabajador.jornada.tarifaPorHora;
+        const multiplicadorSupl = trabajador.multiplicadorSuplPersonalizado 
+          ?? trabajador.jornada.multiplicadorHorasSuplementarias;
+        const multiplicadorExtra = trabajador.multiplicadorExtraPersonalizado 
+          ?? trabajador.jornada.multiplicadorHorasExtra;
+        const horasDiariasBase = trabajador.jornada.horasDiariasBase;
+
+        // Calcular horas
+        const calculo = calcularHorasTrabajador(
+          asistencia.horaEntrada,
+          ahora,
+          Number(horasDiariasBase),
+          Number(tarifaPorHora),
+          Number(multiplicadorSupl),
+          Number(multiplicadorExtra),
+          esFindeSemana
+        );
+
+        // Actualizar campos calculados en la asistencia
+        asistencia = await prisma.asistencia.update({
+          where: { id: asistencia.id },
+          data: {
+            horasTrabajadas: calculo.horasTrabajadas,
+            horasNormales: calculo.horasNormales,
+            horasSuplementarias: calculo.horasSuplementarias,
+            horasExtra: calculo.horasExtra,
+            montoCalculado: calculo.montoCalculado,
+          },
+        });
+      }
     } else {
       return NextResponse.json(
         { error: "Tipo de registro inválido" },
