@@ -45,7 +45,7 @@ export function Navbar() {
   const userRoutes = routes[session.user.role as keyof typeof routes] || [];
 
   return (
-    <nav className="border-b bg-background">
+    <nav className="sticky top-0 z-50 border-b bg-background">
       <div className="flex h-16 items-center px-4 lg:px-8">
         <div className="flex items-center space-x-2">
           <Link href="/" className="flex items-center">
