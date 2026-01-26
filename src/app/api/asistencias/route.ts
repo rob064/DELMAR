@@ -260,7 +260,8 @@ export async function POST(request: NextRequest) {
 
       if (trabajador?.tipoTrabajador === "FIJO" && trabajador.jornada && asistencia.horaEntrada) {
         // Determinar si es fin de semana (0=domingo, 6=sábado)
-        const diaSemana = fecha.getDay();
+        const fechaObj = new Date(fechaAsistencia);
+        const diaSemana = fechaObj.getDay();
         const esFindeSemana = diaSemana === 0 || diaSemana === 6;
 
         // Obtener configuración salarial (personalizada o estándar)
