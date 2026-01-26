@@ -45,7 +45,7 @@ export default function PuertaPage() {
   const [horaActual, setHoraActual] = useState(new Date());
   
   // Estados para registro manual de hora
-  const [usarHoraManual, setUsarHoraManual] = useState(false);
+  const [usarHoraManual, setUsarHoraManual] = useState(true);
   const [horaManual, setHoraManual] = useState("");
 
   useEffect(() => {
