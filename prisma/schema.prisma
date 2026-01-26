@@ -8,6 +8,8 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Configurar zona horaria para Perú (UTC-5)
+  // Agregar al final de tu DATABASE_URL: ?options=-c%20timezone=America/Lima
 }
 
 // ==========================================
