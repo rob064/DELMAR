@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDate, obtenerFechaSemana } from "@/lib/utils";
-import { DollarSign, Plus, TrendingDown, TrendingUp } from "lucide-react";
+import { DollarSign, Plus, TrendingDown, TrendingUp, X } from "lucide-react";
 
 interface Trabajador {
   id: string;
@@ -96,6 +96,14 @@ export default function FinanzasPage() {
   // Editar transacción
   const [showEditarTransaccion, setShowEditarTransaccion] = useState(false);
   const [transaccionEditar, setTransaccionEditar] = useState<any>(null);
+
+  // Modales de detalle
+  const [showDetalleAsistencias, setShowDetalleAsistencias] = useState(false);
+  const [showDetalleMultas, setShowDetalleMultas] = useState(false);
+
+  // Editar bonificación
+  const [bonificacionEditable, setBonificacionEditable] = useState("");
+  const [conceptoBonificacion, setConceptoBonificacion] = useState("");
 
   useEffect(() => {
     cargarDatos();
@@ -224,6 +232,8 @@ export default function FinanzasPage() {
       if (res.ok) {
         const data = await res.json();
         setPreviewData(data);
+        setBonificacionEditable(data.resumen.bonificacionCalculada || "0");
+        setConceptoBonificacion("");
         setShowPreviewNomina(true);
       } else {
         const error = await res.json();
@@ -799,6 +809,15 @@ export default function FinanzasPage() {
                 <CardTitle>Vista Previa de Nómina</CardTitle>
                 <CardDescription>
                   {previewData.trabajador.nombres} {previewData.trabajador.apellidos} - DNI: {previewData.trabajador.dni}
+                  {previewData.trabajador.tipoTrabajador && (
+                    <span className={`ml-2 text-xs px-2 py-1 rounded ${
+                      previewData.trabajador.tipoTrabajador === "FIJO" 
+                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" 
+                        : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                    }`}>
+                      {previewData.trabajador.tipoTrabajador}
+                    </span>
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -813,42 +832,165 @@ export default function FinanzasPage() {
                   </div>
                 </div>
 
-                {/* Resumen financiero */}
-                <div className="rounded-lg border p-4">
-                  <h3 className="font-medium mb-3">Resumen Financiero</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Horas trabajadas:</span>
-                      <span className="font-medium">{previewData.resumen.totalHoras} hrs</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Producción total:</span>
-                      <span className="font-medium">{previewData.resumen.totalProduccion}</span>
-                    </div>
-                    <div className="flex justify-between border-t pt-2">
-                      <span>Monto base:</span>
-                      <span className="font-bold text-green-600">{formatCurrency(previewData.resumen.montoBase)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Adelantos:</span>
-                      <span className="text-orange-600">-{formatCurrency(previewData.resumen.adelantos)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Multas:</span>
-                      <span className="text-red-600">-{formatCurrency(previewData.resumen.multas)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Ajustes:</span>
-                      <span className={parseFloat(previewData.resumen.ajustes) >= 0 ? "text-green-600" : "text-red-600"}>
-                        {formatCurrency(previewData.resumen.ajustes)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between border-t-2 pt-2">
-                      <span className="font-bold text-lg">Total Neto:</span>
-                      <span className="font-bold text-lg text-blue-600">{formatCurrency(previewData.resumen.totalNeto)}</span>
+                {/* Resumen financiero - TRABAJADOR FIJO */}
+                {previewData.trabajador.tipoTrabajador === "FIJO" && (
+                  <div className="rounded-lg border p-4">
+                    <h3 className="font-medium mb-3">Resumen Financiero - Trabajador FIJO</h3>
+                    <div className="space-y-2 text-sm">
+                      {/* Salario base */}
+                      <div className="flex justify-between bg-blue-50 dark:bg-blue-950/30 p-2 rounded">
+                        <span className="font-medium">Salario base periodo:</span>
+                        <span className="font-bold text-blue-600">{formatCurrency(previewData.resumen.salarioBasePeriodo)}</span>
+                      </div>
+
+                      {/* Desglose de horas */}
+                      <div className="border-t pt-2 mt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">Horas trabajadas (desglose):</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setShowDetalleAsistencias(true)}
+                          >
+                            VER DETALLE
+                          </Button>
+                        </div>
+                        <div className="ml-4 space-y-1 mt-2">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Horas normales ({previewData.resumen.horasNormales} hrs):</span>
+                            <span>{formatCurrency(previewData.resumen.montoHorasNormales)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Horas suplementarias ({previewData.resumen.horasSuplementarias} hrs):</span>
+                            <span>{formatCurrency(previewData.resumen.montoHorasSuplementarias)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Horas extra ({previewData.resumen.horasExtra} hrs):</span>
+                            <span>{formatCurrency(previewData.resumen.montoHorasExtra)}</span>
+                          </div>
+                          <div className="flex justify-between border-t pt-1 font-medium">
+                            <span>Sueldo trabajado:</span>
+                            <span className="text-green-600">{formatCurrency(previewData.resumen.sueldoTrabajado)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Multas */}
+                      {parseFloat(previewData.resumen.multas) > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span>Multas (retardos/faltas):</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-red-600">-{formatCurrency(previewData.resumen.multas)}</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setShowDetalleMultas(true)}
+                            >
+                              VER
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Bonificación editable */}
+                      <div className="border-t pt-2 mt-2 bg-yellow-50 dark:bg-yellow-950/30 p-2 rounded">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-medium">Bonificación:</span>
+                          <span className="text-xs text-muted-foreground">
+                            (Calculada: {formatCurrency(previewData.resumen.bonificacionCalculada)})
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={bonificacionEditable}
+                            onChange={(e) => setBonificacionEditable(e.target.value)}
+                            placeholder="0.00"
+                            className="text-right"
+                          />
+                          <Textarea
+                            value={conceptoBonificacion}
+                            onChange={(e) => setConceptoBonificacion(e.target.value)}
+                            placeholder="Concepto/justificación de bonificación (opcional)"
+                            rows={2}
+                            className="text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Adelantos */}
+                      {parseFloat(previewData.resumen.adelantos) > 0 && (
+                        <div className="flex justify-between">
+                          <span>Adelantos:</span>
+                          <span className="text-orange-600">-{formatCurrency(previewData.resumen.adelantos)}</span>
+                        </div>
+                      )}
+
+                      {/* Ajustes */}
+                      {parseFloat(previewData.resumen.ajustes) !== 0 && (
+                        <div className="flex justify-between">
+                          <span>Ajustes:</span>
+                          <span className={parseFloat(previewData.resumen.ajustes) >= 0 ? "text-green-600" : "text-red-600"}>
+                            {formatCurrency(previewData.resumen.ajustes)}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Total neto calculado dinámicamente */}
+                      <div className="flex justify-between border-t-2 pt-2">
+                        <span className="font-bold text-lg">Total Neto:</span>
+                        <span className="font-bold text-lg text-blue-600">
+                          {formatCurrency(
+                            parseFloat(previewData.resumen.salarioBasePeriodo || "0") +
+                            parseFloat(bonificacionEditable || "0") -
+                            parseFloat(previewData.resumen.adelantos || "0") +
+                            parseFloat(previewData.resumen.ajustes || "0")
+                          )}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {/* Resumen financiero - TRABAJADOR EVENTUAL */}
+                {previewData.trabajador.tipoTrabajador === "EVENTUAL" && (
+                  <div className="rounded-lg border p-4">
+                    <h3 className="font-medium mb-3">Resumen Financiero - Trabajador EVENTUAL</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Horas trabajadas:</span>
+                        <span className="font-medium">{previewData.resumen.totalHoras} hrs</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Producción total:</span>
+                        <span className="font-medium">{previewData.resumen.totalProduccion}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span>Monto base:</span>
+                        <span className="font-bold text-green-600">{formatCurrency(previewData.resumen.montoBase)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Adelantos:</span>
+                        <span className="text-orange-600">-{formatCurrency(previewData.resumen.adelantos)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Multas:</span>
+                        <span className="text-red-600">-{formatCurrency(previewData.resumen.multas)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Ajustes:</span>
+                        <span className={parseFloat(previewData.resumen.ajustes) >= 0 ? "text-green-600" : "text-red-600"}>
+                          {formatCurrency(previewData.resumen.ajustes)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t-2 pt-2">
+                        <span className="font-bold text-lg">Total Neto:</span>
+                        <span className="font-bold text-lg text-blue-600">{formatCurrency(previewData.resumen.totalNeto)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Transacciones */}
                 {previewData.transacciones && previewData.transacciones.length > 0 && (
@@ -933,7 +1075,7 @@ export default function FinanzasPage() {
         )}
 
         {/* Modal Editar Transacción */}
-        {showEditarTransaccion && transaccionEditar && (
+        {showEditarTransacción && transaccionEditar && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <Card className="w-full max-w-md">
               <CardHeader>
@@ -982,6 +1124,147 @@ export default function FinanzasPage() {
                   >
                     Cancelar
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Modal Detalle Asistencias */}
+        {showDetalleAsistencias && previewData && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60]">
+            <Card className="w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Detalle de Asistencias</CardTitle>
+                  <CardDescription>Desglose diario de horas trabajadas</CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowDetalleAsistencias(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="overflow-y-auto">
+                <div className="space-y-2">
+                  {previewData.asistencias && previewData.asistencias.length > 0 ? (
+                    previewData.asistencias.map((asist: any) => (
+                      <div key={asist.id} className="border rounded-lg p-3">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-medium">{formatDate(new Date(asist.fecha))}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {asist.horaEntrada ? new Date(asist.horaEntrada).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '-'} - 
+                              {asist.horaSalida ? new Date(asist.horaSalida).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                            </p>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            asist.estado === "PRESENTE" ? "bg-green-100 text-green-800" :
+                            asist.estado === "TARDE" ? "bg-yellow-100 text-yellow-800" :
+                            asist.estado === "FALTA" ? "bg-red-100 text-red-800" : "bg-gray-100"
+                          }`}>
+                            {asist.estado}
+                          </span>
+                        </div>
+                        {asist.horasTrabajadas && (
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Total: </span>
+                              <span className="font-medium">{Number(asist.horasTrabajadas).toFixed(2)} hrs</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Normales: </span>
+                              <span>{Number(asist.horasNormales || 0).toFixed(2)} hrs</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Suplementarias: </span>
+                              <span>{Number(asist.horasSuplementarias || 0).toFixed(2)} hrs</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Extra: </span>
+                              <span>{Number(asist.horasExtra || 0).toFixed(2)} hrs</span>
+                            </div>
+                            <div className="col-span-2 border-t pt-2 mt-1">
+                              <span className="text-muted-foreground">Monto día: </span>
+                              <span className="font-bold text-green-600">{formatCurrency(asist.montoCalculado || 0)}</span>
+                            </div>
+                          </div>
+                        )}
+                        {asist.observaciones && (
+                          <p className="text-xs text-muted-foreground mt-2 border-t pt-2">
+                            {asist.observaciones}
+                          </p>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">No hay asistencias registradas</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Modal Detalle Multas */}
+        {showDetalleMultas && previewData && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60]">
+            <Card className="w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Detalle de Multas</CardTitle>
+                  <CardDescription>Multas por retardos y faltas del período</CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowDetalleMultas(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="overflow-y-auto">
+                <div className="space-y-2">
+                  {previewData.transacciones && previewData.transacciones.filter((t: any) => t.tipo === "MULTA").length > 0 ? (
+                    previewData.transacciones
+                      .filter((t: any) => t.tipo === "MULTA")
+                      .map((multa: any) => (
+                        <div key={multa.id} className="border rounded-lg p-3 bg-red-50 dark:bg-red-950/20">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <p className="font-medium text-red-800 dark:text-red-200">{multa.concepto}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {formatDate(new Date(multa.fecha))}
+                              </p>
+                              {multa.observaciones && (
+                                <p className="text-xs text-muted-foreground mt-2 italic">
+                                  {multa.observaciones}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right ml-4">
+                              <p className="font-bold text-red-600">{formatCurrency(multa.monto)}</p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setTransaccionEditar(multa);
+                                  setShowEditarTransaccion(true);
+                                  setShowDetalleMultas(false);
+                                }}
+                                className="mt-1 text-xs"
+                              >
+                                Editar/Justificar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">No hay multas en este período</p>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -40,12 +40,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtener información del trabajador
-    const trabajador = await prisma.trabajador.findUnique({
+    const trabajador: any = await (prisma.trabajador as any).findUnique({
       where: { id: trabajadorId },
-      select: {
-        nombres: true,
-        apellidos: true,
-        dni: true,
+      include: {
+        jornada: true,
       },
     });
 
@@ -55,6 +53,8 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const esTrabajadorFijo = (trabajador as any).tipoTrabajador === "FIJO";
 
     // Verificar si ya existe un pago para este período
     const pagoExistente = await prisma.pago.findFirst({
@@ -77,34 +77,81 @@ export async function POST(request: NextRequest) {
       orderBy: { fecha: "asc" },
     });
 
-    // Calcular total de horas y producción
-    const produccion = await prisma.produccionDiaria.findMany({
-      where: {
-        trabajadorId,
-        fecha: {
-          gte: inicio,
-          lte: fin,
-        },
-      },
-      include: {
-        actividad: true,
-      },
-      orderBy: { fecha: "asc" },
-    });
-
+    // Inicializar variables
     let totalHoras = new Decimal(0);
     let totalProduccion = new Decimal(0);
     let montoBase = new Decimal(0);
+    
+    // Variables para trabajadores FIJOS
+    let horasNormales = new Decimal(0);
+    let horasSuplementarias = new Decimal(0);
+    let horasExtra = new Decimal(0);
+    let montoHorasNormales = new Decimal(0);
+    let montoHorasSuplementarias = new Decimal(0);
+    let montoHorasExtra = new Decimal(0);
+    let sueldoTrabajado = new Decimal(0);
+    let salarioBasePeriodo = new Decimal(0);
 
-    produccion.forEach((prod) => {
-      if (prod.horasTrabajadas) {
-        totalHoras = totalHoras.add(prod.horasTrabajadas);
+    if (esTrabajadorFijo && (trabajador as any).jornada) {
+      // TRABAJADOR FIJO: Sumar campos calculados de asistencias
+      asistencias.forEach((asist: any) => {
+        if (asist.horasNormales) horasNormales = horasNormales.add(asist.horasNormales);
+        if (asist.horasSuplementarias) horasSuplementarias = horasSuplementarias.add(asist.horasSuplementarias);
+        if (asist.horasExtra) horasExtra = horasExtra.add(asist.horasExtra);
+        if (asist.montoCalculado) sueldoTrabajado = sueldoTrabajado.add(asist.montoCalculado);
+      });
+
+      // Calcular montos por tipo de hora
+      const trab = trabajador as any;
+      const tarifa = trab.tarifaPorHoraPersonalizada ?? trab.jornada.tarifaPorHora;
+      const multSupl = trab.multiplicadorSuplPersonalizado ?? trab.jornada.multiplicadorHorasSuplementarias;
+      const multExtra = trab.multiplicadorExtraPersonalizado ?? trab.jornada.multiplicadorHorasExtra;
+
+      montoHorasNormales = horasNormales.mul(tarifa);
+      montoHorasSuplementarias = horasSuplementarias.mul(tarifa).mul(multSupl);
+      montoHorasExtra = horasExtra.mul(tarifa).mul(multExtra);
+
+      // Calcular salario base del periodo (asumiendo quincenal = mitad del mensual)
+      const salarioBaseMensual = trab.salarioBasePersonalizado ?? trab.jornada.salarioBaseMensual;
+      const diasPeriodo = Math.ceil((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      
+      // Calcular proporción del salario base según días del periodo
+      if (diasPeriodo <= 15) {
+        salarioBasePeriodo = new Decimal(salarioBaseMensual.toString()).div(2);
+      } else if (diasPeriodo <= 30) {
+        salarioBasePeriodo = new Decimal(salarioBaseMensual.toString());
+      } else {
+        // Más de un mes, prorratear
+        salarioBasePeriodo = new Decimal(salarioBaseMensual.toString()).mul(diasPeriodo).div(30);
       }
-      if (prod.cantidadProducida) {
-        totalProduccion = totalProduccion.add(prod.cantidadProducida);
-      }
-      montoBase = montoBase.add(prod.montoGenerado);
-    });
+
+      montoBase = sueldoTrabajado;
+    } else {
+      // TRABAJADOR EVENTUAL: Calcular desde producción
+      const produccion = await prisma.produccionDiaria.findMany({
+        where: {
+          trabajadorId,
+          fecha: {
+            gte: inicio,
+            lte: fin,
+          },
+        },
+        include: {
+          actividad: true,
+        },
+        orderBy: { fecha: "asc" },
+      });
+
+      produccion.forEach((prod) => {
+        if (prod.horasTrabajadas) {
+          totalHoras = totalHoras.add(prod.horasTrabajadas);
+        }
+        if (prod.cantidadProducida) {
+          totalProduccion = totalProduccion.add(prod.cantidadProducida);
+        }
+        montoBase = montoBase.add(prod.montoGenerado);
+      });
+    }
 
     // Calcular adelantos y multas no descontados
     const transacciones = await prisma.transaccion.findMany({
@@ -133,15 +180,44 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Calcular bonificación para trabajadores FIJOS
+    let bonificacionCalculada = new Decimal(0);
+    if (esTrabajadorFijo) {
+      // Si trabajó menos del salario base, bonificar la diferencia menos multas
+      const diferencia = salarioBasePeriodo.sub(sueldoTrabajado);
+      if (diferencia.greaterThan(0)) {
+        bonificacionCalculada = diferencia.sub(multas);
+        if (bonificacionCalculada.lessThan(0)) {
+          bonificacionCalculada = new Decimal(0);
+        }
+      }
+    }
+
     // Calcular total neto
-    const totalNeto = montoBase.sub(adelantos).sub(multas).add(ajustes);
+    let totalNeto = new Decimal(0);
+    if (esTrabajadorFijo) {
+      // Para FIJOS: salarioBase + bonificacion - adelantos + ajustes
+      totalNeto = salarioBasePeriodo.add(bonificacionCalculada).sub(adelantos).add(ajustes);
+    } else {
+      // Para EVENTUALES: montoBase - adelantos - multas + ajustes
+      totalNeto = montoBase.sub(adelantos).sub(multas).add(ajustes);
+    }
 
     // Calcular días trabajados
     const diasTrabajados = asistencias.length;
     const diasPeriodo = Math.ceil((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
+    const trab = trabajador as any;
+
     return NextResponse.json({
-      trabajador,
+      trabajador: {
+        id: trabajador.id,
+        nombres: trabajador.nombres,
+        apellidos: trabajador.apellidos,
+        dni: trabajador.dni,
+        tipoTrabajador: trab.tipoTrabajador,
+        jornada: trab.jornada,
+      },
       periodo: {
         fechaInicio: inicio.toISOString(),
         fechaFin: fin.toISOString(),
@@ -149,15 +225,30 @@ export async function POST(request: NextRequest) {
         diasTrabajados,
       },
       asistencias,
-      produccion,
       transacciones,
       resumen: {
+        // Datos generales
         totalHoras: totalHoras.toString(),
         totalProduccion: totalProduccion.toString(),
         montoBase: montoBase.toString(),
+        
+        // Trabajadores FIJOS
+        salarioBasePeriodo: salarioBasePeriodo.toString(),
+        horasNormales: horasNormales.toString(),
+        horasSuplementarias: horasSuplementarias.toString(),
+        horasExtra: horasExtra.toString(),
+        montoHorasNormales: montoHorasNormales.toString(),
+        montoHorasSuplementarias: montoHorasSuplementarias.toString(),
+        montoHorasExtra: montoHorasExtra.toString(),
+        sueldoTrabajado: sueldoTrabajado.toString(),
+        
+        // Descuentos y bonificaciones
         adelantos: adelantos.toString(),
         multas: multas.toString(),
         ajustes: ajustes.toString(),
+        bonificacionCalculada: bonificacionCalculada.toString(),
+        
+        // Total
         totalNeto: totalNeto.toString(),
       },
       pagoExistente: !!pagoExistente,
