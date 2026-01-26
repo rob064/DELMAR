@@ -7,15 +7,15 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(amount: number | string): string {
   const num = typeof amount === "string" ? parseFloat(amount) : amount;
-  return new Intl.NumberFormat("es-PE", {
+  return new Intl.NumberFormat("es-EC", {
     style: "currency",
-    currency: "PEN",
+    currency: "USD",
   }).format(num);
 }
 
 export function formatDate(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat("es-PE", {
+  return new Intl.DateTimeFormat("es-EC", {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -24,7 +24,7 @@ export function formatDate(date: Date | string): string {
 
 export function formatTime(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat("es-PE", {
+  return new Intl.DateTimeFormat("es-EC", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -48,7 +48,7 @@ export function parseDateString(dateString: string): Date {
 
 export function formatDateTime(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat("es-PE", {
+  return new Intl.DateTimeFormat("es-EC", {
     year: "numeric",
     month: "short",
     day: "numeric",

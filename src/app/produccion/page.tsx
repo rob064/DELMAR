@@ -328,14 +328,14 @@ export default function ProduccionPage() {
                         <div>
                           <span className="text-muted-foreground">Hora Entrada:</span>{" "}
                           <span className="font-medium">
-                            {new Date(asistenciaDelDia.horaEntrada).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(asistenciaDelDia.horaEntrada).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Hora Salida:</span>{" "}
                           <span className="font-medium">
                             {asistenciaDelDia.horaSalida 
-                              ? new Date(asistenciaDelDia.horaSalida).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
+                              ? new Date(asistenciaDelDia.horaSalida).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })
                               : "No registrada"}
                           </span>
                         </div>

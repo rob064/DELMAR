@@ -251,7 +251,7 @@ export default function PuertaPage() {
                   <Label htmlFor="turno">
                     {fechaSeleccionada === getLocalDateString()
                       ? "¿Qué turno trabajará hoy?"
-                      : `¿Qué turno trabajó el ${parseDateString(fechaSeleccionada).toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}?`}
+                      : `¿Qué turno trabajó el ${parseDateString(fechaSeleccionada).toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}?`}
                   </Label>
                   <select
                     id="turno"
