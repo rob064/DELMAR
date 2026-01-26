@@ -47,6 +47,12 @@ export default function ProduccionPage() {
   const [actividades, setActividades] = useState<Actividad[]>([]);
   const [produccionHoy, setProduccionHoy] = useState<Produccion[]>([]);
   
+  // Fecha para el filtro de producción (lado derecho)
+  const [fechaFiltro, setFechaFiltro] = useState(new Date().toISOString().split("T")[0]);
+  
+  // Fecha para el formulario de registro (lado izquierdo)
+  const [fechaRegistro, setFechaRegistro] = useState(new Date().toISOString().split("T")[0]);
+  
   const [selectedTrabajador, setSelectedTrabajador] = useState("");
   const [selectedActividad, setSelectedActividad] = useState("");
   const [horasTrabajadas, setHorasTrabajadas] = useState("");
@@ -69,14 +75,14 @@ export default function ProduccionPage() {
 
   useEffect(() => {
     cargarDatos();
-  }, []);
+  }, [fechaFiltro]);
 
   const cargarDatos = async () => {
     try {
       const [trabajadoresRes, actividadesRes, produccionRes] = await Promise.all([
         fetch("/api/trabajadores"),
         fetch("/api/actividades"),
-        fetch(`/api/produccion?fecha=${new Date().toISOString().split("T")[0]}`),
+        fetch(`/api/produccion?fecha=${fechaFiltro}`),
       ]);
 
       const trabajadoresData = await trabajadoresRes.json();
@@ -118,6 +124,7 @@ export default function ProduccionPage() {
         body: JSON.stringify({
           trabajadorId: selectedTrabajador,
           actividadId: selectedActividad,
+          fecha: fechaRegistro,
           horasTrabajadas: horasTrabajadas || null,
           cantidadProducida: cantidadProducida || null,
           observaciones,
@@ -208,6 +215,15 @@ export default function ProduccionPage() {
               <CardDescription>Asignar actividad y registrar producción</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Fecha</Label>
+                <Input
+                  type="date"
+                  value={fechaRegistro}
+                  onChange={(e) => setFechaRegistro(e.target.value)}
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label>Trabajador</Label>
                 <select
@@ -302,8 +318,18 @@ export default function ProduccionPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Producción de Hoy</CardTitle>
-              <CardDescription>{produccionHoy.length} registro(s)</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Producción del {formatDate(fechaFiltro)}</CardTitle>
+                  <CardDescription>{produccionHoy.length} registro(s)</CardDescription>
+                </div>
+                <Input
+                  type="date"
+                  value={fechaFiltro}
+                  onChange={(e) => setFechaFiltro(e.target.value)}
+                  className="w-40"
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="max-h-[500px] space-y-3 overflow-y-auto">
