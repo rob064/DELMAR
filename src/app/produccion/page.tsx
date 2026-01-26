@@ -55,8 +55,7 @@ export default function ProduccionPage() {
   
   const [selectedTrabajador, setSelectedTrabajador] = useState("");
   const [selectedActividad, setSelectedActividad] = useState("");
-  const [horaInicio, setHoraInicio] = useState("");
-  const [horaFin, setHoraFin] = useState("");
+  const [asistenciaDelDia, setAsistenciaDelDia] = useState<any>(null);
   const [horasTrabajadas, setHorasTrabajadas] = useState("");
   const [cantidadProducida, setCantidadProducida] = useState("");
   const [observaciones, setObservaciones] = useState("");
@@ -79,30 +78,46 @@ export default function ProduccionPage() {
     cargarDatos();
   }, [fechaFiltro]);
 
-  // Calcular horas trabajadas automáticamente cuando cambien hora inicio o hora fin
+  // Obtener asistencia del trabajador cuando cambie trabajador o fecha
   useEffect(() => {
-    const actividad = actividades.find((a) => a.id === selectedActividad);
-    
-    if (actividad?.tipoPago === "POR_HORA" && horaInicio && horaFin) {
-      const [horaI, minI] = horaInicio.split(":").map(Number);
-      const [horaF, minF] = horaFin.split(":").map(Number);
-      
-      const minutosInicio = horaI * 60 + minI;
-      const minutosFin = horaF * 60 + minF;
-      
-      let diferenciaMinutos = minutosFin - minutosInicio;
-      
-      // Si la hora fin es menor que la hora inicio, asumimos que cruzó la medianoche
-      if (diferenciaMinutos < 0) {
-        diferenciaMinutos += 24 * 60;
-      }
-      
-      const horas = (diferenciaMinutos / 60).toFixed(2);
-      setHorasTrabajadas(horas);
-    } else if (actividad?.tipoPago === "POR_HORA" && (!horaInicio || !horaFin)) {
+    if (selectedTrabajador && fechaRegistro) {
+      obtenerAsistencia();
+    } else {
+      setAsistenciaDelDia(null);
       setHorasTrabajadas("");
     }
-  }, [horaInicio, horaFin, selectedActividad, actividades]);
+  }, [selectedTrabajador, fechaRegistro]);
+
+  // Calcular horas trabajadas automáticamente cuando haya asistencia
+  useEffect(() => {
+    if (asistenciaDelDia?.horaEntrada && asistenciaDelDia?.horaSalida) {
+      const entrada = new Date(asistenciaDelDia.horaEntrada);
+      const salida = new Date(asistenciaDelDia.horaSalida);
+      
+      const diferenciaMs = salida.getTime() - entrada.getTime();
+      const horas = (diferenciaMs / (1000 * 60 * 60)).toFixed(2);
+      
+      setHorasTrabajadas(horas);
+    } else {
+      setHorasTrabajadas("");
+    }
+  }, [asistenciaDelDia]);
+
+  const obtenerAsistencia = async () => {
+    try {
+      const res = await fetch(`/api/asistencias?fecha=${fechaRegistro}&trabajadorId=${selectedTrabajador}`);
+      const data = await res.json();
+      
+      if (data && data.length > 0) {
+        setAsistenciaDelDia(data[0]);
+      } else {
+        setAsistenciaDelDia(null);
+      }
+    } catch (error) {
+      console.error("Error al obtener asistencia:", error);
+      setAsistenciaDelDia(null);
+    }
+  };
 
   const cargarDatos = async () => {
     try {
@@ -133,22 +148,26 @@ export default function ProduccionPage() {
     const actividad = actividades.find((a) => a.id === selectedActividad);
     if (!actividad) return;
 
-    // Validación para POR_HORA: debe tener hora inicio y hora fin
+    // Validación para POR_HORA: debe tener asistencia registrada con entrada y salida
     if (actividad.tipoPago === "POR_HORA") {
-      if (!horaInicio || !horaFin) {
-        alert("Por favor ingrese hora de inicio y hora de fin");
+      if (!asistenciaDelDia) {
+        alert("El trabajador no tiene asistencia registrada para esta fecha");
+        return;
+      }
+      if (!asistenciaDelDia.horaEntrada || !asistenciaDelDia.horaSalida) {
+        alert("El trabajador no tiene hora de salida registrada");
         return;
       }
       if (!horasTrabajadas || parseFloat(horasTrabajadas) <= 0) {
-        alert("Las horas trabajadas deben ser mayores a 0");
+        alert("No se pudieron calcular las horas trabajadas");
         return;
       }
     }
 
-    // Validación para POR_PRODUCCION: debe tener al menos hora inicio
+    // Validación para POR_PRODUCCION: debe tener asistencia registrada con al menos entrada
     if (actividad.tipoPago === "POR_PRODUCCION") {
-      if (!horaInicio) {
-        alert("Por favor ingrese al menos la hora de inicio");
+      if (!asistenciaDelDia || !asistenciaDelDia.horaEntrada) {
+        alert("El trabajador no tiene asistencia (hora de entrada) registrada para esta fecha");
         return;
       }
       if (!cantidadProducida) {
@@ -166,8 +185,8 @@ export default function ProduccionPage() {
           trabajadorId: selectedTrabajador,
           actividadId: selectedActividad,
           fecha: fechaRegistro,
-          horaInicio: horaInicio ? `${fechaRegistro}T${horaInicio}:00` : null,
-          horaFin: horaFin ? `${fechaRegistro}T${horaFin}:00` : null,
+          horaInicio: asistenciaDelDia?.horaEntrada || null,
+          horaFin: asistenciaDelDia?.horaSalida || null,
           horasTrabajadas: horasTrabajadas || null,
           cantidadProducida: cantidadProducida || null,
           observaciones,
@@ -178,8 +197,7 @@ export default function ProduccionPage() {
         alert("Producción registrada exitosamente");
         setSelectedTrabajador("");
         setSelectedActividad("");
-        setHoraInicio("");
-        setHoraFin("");
+        setAsistenciaDelDia(null);
         setHorasTrabajadas("");
         setCantidadProducida("");
         setObservaciones("");
@@ -301,91 +319,81 @@ export default function ProduccionPage() {
                 </select>
               </div>
 
+              {selectedTrabajador && fechaRegistro && (
+                <div className="rounded-lg border p-3 bg-blue-50 space-y-2">
+                  <p className="text-sm font-medium">Datos de Asistencia:</p>
+                  {asistenciaDelDia ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Hora Entrada:</span>{" "}
+                          <span className="font-medium">
+                            {new Date(asistenciaDelDia.horaEntrada).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Hora Salida:</span>{" "}
+                          <span className="font-medium">
+                            {asistenciaDelDia.horaSalida 
+                              ? new Date(asistenciaDelDia.horaSalida).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
+                              : "No registrada"}
+                          </span>
+                        </div>
+                      </div>
+                      {asistenciaDelDia.turno && (
+                        <p className="text-xs text-muted-foreground">
+                          Turno: {asistenciaDelDia.turnoProgramado}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-amber-700">
+                      ⚠️ No hay asistencia registrada para este trabajador en esta fecha
+                    </p>
+                  )}
+                </div>
+              )}
+
               {actividadSeleccionada?.tipoPago === "POR_HORA" && (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Hora Inicio *</Label>
-                      <Input
-                        type="time"
-                        value={horaInicio}
-                        onChange={(e) => setHoraInicio(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Hora Fin *</Label>
-                      <Input
-                        type="time"
-                        value={horaFin}
-                        onChange={(e) => setHoraFin(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Horas Trabajadas (calculado)</Label>
-                    <Input
-                      type="text"
-                      value={horasTrabajadas}
-                      readOnly
-                      className="bg-gray-50"
-                      placeholder="Se calcula automáticamente"
-                    />
-                    {actividadSeleccionada.tarifaPorHora && horasTrabajadas && (
-                      <p className="text-sm text-muted-foreground">
-                        Tarifa: {formatCurrency(actividadSeleccionada.tarifaPorHora)}/hora
-                        {" → "}Total: {formatCurrency((parseFloat(horasTrabajadas) * parseFloat(actividadSeleccionada.tarifaPorHora)).toString())}
-                      </p>
-                    )}
-                  </div>
-                </>
+                <div className="space-y-2">
+                  <Label>Horas Trabajadas (automático)</Label>
+                  <Input
+                    type="text"
+                    value={horasTrabajadas || "0.00"}
+                    readOnly
+                    className="bg-gray-50"
+                    placeholder="Se calcula desde asistencia"
+                  />
+                  {actividadSeleccionada.tarifaPorHora && horasTrabajadas && (
+                    <p className="text-sm text-muted-foreground">
+                      Tarifa: {formatCurrency(actividadSeleccionada.tarifaPorHora)}/hora
+                      {" → "}Total: {formatCurrency((parseFloat(horasTrabajadas) * parseFloat(actividadSeleccionada.tarifaPorHora)).toString())}
+                    </p>
+                  )}
+                </div>
               )}
 
               {actividadSeleccionada?.tipoPago === "POR_PRODUCCION" && (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Hora Inicio *</Label>
-                      <Input
-                        type="time"
-                        value={horaInicio}
-                        onChange={(e) => setHoraInicio(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Hora Fin (opcional)</Label>
-                      <Input
-                        type="time"
-                        value={horaFin}
-                        onChange={(e) => setHoraFin(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>
-                      Cantidad Producida *
-                      {actividadSeleccionada.unidadMedida && ` (${actividadSeleccionada.unidadMedida})`}
-                    </Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="100"
-                      value={cantidadProducida}
-                      onChange={(e) => setCantidadProducida(e.target.value)}
-                      required
-                    />
-                    {actividadSeleccionada.tarifaPorUnidad && cantidadProducida && (
-                      <p className="text-sm text-muted-foreground">
-                        Tarifa: {formatCurrency(actividadSeleccionada.tarifaPorUnidad)}/{actividadSeleccionada.unidadMedida}
-                        {" → "}Total: {formatCurrency((parseFloat(cantidadProducida) * parseFloat(actividadSeleccionada.tarifaPorUnidad)).toString())}
-                      </p>
-                    )}
-                  </div>
-                </>
+                <div className="space-y-2">
+                  <Label>
+                    Cantidad Producida *
+                    {actividadSeleccionada.unidadMedida && ` (${actividadSeleccionada.unidadMedida})`}
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="100"
+                    value={cantidadProducida}
+                    onChange={(e) => setCantidadProducida(e.target.value)}
+                    required
+                  />
+                  {actividadSeleccionada.tarifaPorUnidad && cantidadProducida && (
+                    <p className="text-sm text-muted-foreground">
+                      Tarifa: {formatCurrency(actividadSeleccionada.tarifaPorUnidad)}/{actividadSeleccionada.unidadMedida}
+                      {" → "}Total: {formatCurrency((parseFloat(cantidadProducida) * parseFloat(actividadSeleccionada.tarifaPorUnidad)).toString())}
+                    </p>
+                  )}
+                </div>
               )}
 
               <div className="space-y-2">
