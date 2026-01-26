@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { trabajadorId, tipo, fecha, turnoProgramado, observaciones } = body; // tipo: 'entrada' o 'salida', turnoProgramado: "08:00-16:00"
+    const { trabajadorId, tipo, fecha, turnoProgramado, observaciones, horaPersonalizada } = body; // tipo: 'entrada' o 'salida', turnoProgramado: "08:00-16:00", horaPersonalizada: "14:30:00"
 
     const trabajador = await prisma.trabajador.findUnique({
       where: { id: trabajadorId },
@@ -79,7 +79,16 @@ export async function POST(request: NextRequest) {
     const fechaAsistencia = fecha ? new Date(fecha) : new Date();
     fechaAsistencia.setHours(0, 0, 0, 0);
 
-    const ahora = new Date();
+    // Usar hora personalizada o la hora actual
+    let ahora: Date;
+    if (horaPersonalizada) {
+      // Construir fecha con hora personalizada
+      ahora = new Date(fechaAsistencia);
+      const [hora, minuto, segundo] = horaPersonalizada.split(':').map(Number);
+      ahora.setHours(hora, minuto, segundo || 0, 0);
+    } else {
+      ahora = new Date();
+    }
 
     // Buscar si ya existe una asistencia para esta fecha
     let asistencia = await prisma.asistencia.findUnique({

@@ -43,6 +43,10 @@ export default function PuertaPage() {
   const [observaciones, setObservaciones] = useState("");
   const [loading, setLoading] = useState(false);
   const [horaActual, setHoraActual] = useState(new Date());
+  
+  // Estados para registro manual de hora
+  const [usarHoraManual, setUsarHoraManual] = useState(false);
+  const [horaManual, setHoraManual] = useState("");
 
   useEffect(() => {
     cargarTrabajadores();
@@ -98,6 +102,12 @@ export default function PuertaPage() {
       }
     }
 
+    // Validar hora manual si está activada
+    if (usarHoraManual && !horaManual) {
+      alert("Debe seleccionar una hora");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/asistencias", {
@@ -109,6 +119,7 @@ export default function PuertaPage() {
           fecha: fechaSeleccionada,
           turnoProgramado: tipo === "entrada" ? turnoProgramado : undefined,
           observaciones,
+          horaPersonalizada: usarHoraManual ? horaManual : undefined,
         }),
       });
 
@@ -117,6 +128,7 @@ export default function PuertaPage() {
         setSelectedTrabajador("");
         setSearchDni("");
         setObservaciones("");
+        setHoraManual("");
         cargarAsistenciasHoy();
       } else {
         const error = await res.json();
@@ -265,6 +277,44 @@ export default function PuertaPage() {
                   </select>
                 </div>
               )}
+
+              <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="usarHoraManual"
+                    checked={usarHoraManual}
+                    onChange={(e) => setUsarHoraManual(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <Label htmlFor="usarHoraManual" className="cursor-pointer font-medium">
+                    Usar hora manual (registro retroactivo)
+                  </Label>
+                </div>
+
+                {usarHoraManual && (
+                  <div className="space-y-2">
+                    <Label htmlFor="horaManual">Hora específica</Label>
+                    <Input
+                      id="horaManual"
+                      type="time"
+                      step="1"
+                      value={horaManual}
+                      onChange={(e) => setHoraManual(e.target.value)}
+                      className="bg-white"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Se registrará con la hora seleccionada en lugar de la hora actual
+                    </p>
+                  </div>
+                )}
+
+                {!usarHoraManual && (
+                  <p className="text-xs text-muted-foreground">
+                    Se registrará con la hora actual del sistema: {formatTime(horaActual)}
+                  </p>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="observaciones">Observaciones (opcional)</Label>
