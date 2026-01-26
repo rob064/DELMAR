@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 // GET - Obtener una actividad específica
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,8 +14,10 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const { id } = await context.params;
+
     const actividad = await prisma.actividad.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!actividad) {
@@ -35,7 +37,7 @@ export async function GET(
 // PATCH - Actualizar actividad
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -43,11 +45,12 @@ export async function PATCH(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const { id } = await context.params;
     const body = await request.json();
     const { codigo, nombre, descripcion, tipoPago, valor, unidadMedida, activo } = body;
 
     const actividad = await prisma.actividad.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(codigo !== undefined && { codigo }),
         ...(nombre !== undefined && { nombre }),
@@ -72,7 +75,7 @@ export async function PATCH(
 // DELETE - Eliminar actividad (soft delete)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -80,8 +83,10 @@ export async function DELETE(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const { id } = await context.params;
+
     await prisma.actividad.update({
-      where: { id: params.id },
+      where: { id },
       data: { activo: false },
     });
 

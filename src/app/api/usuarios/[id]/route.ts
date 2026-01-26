@@ -7,7 +7,7 @@ import * as bcrypt from "bcryptjs";
 // GET - Obtener un usuario específico
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,8 +15,10 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const { id } = await context.params;
+
     const usuario = await prisma.usuario.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: {
         id: true,
         email: true,
@@ -45,7 +47,7 @@ export async function GET(
 // PATCH - Actualizar usuario
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -53,6 +55,7 @@ export async function PATCH(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const { id } = await context.params;
     const body = await request.json();
     const { email, password, nombre, role, activo } = body;
 
@@ -69,7 +72,7 @@ export async function PATCH(
     }
 
     const usuario = await prisma.usuario.update({
-      where: { id: params.id },
+      where: { id },
       data,
       select: {
         id: true,
@@ -94,7 +97,7 @@ export async function PATCH(
 // DELETE - Desactivar usuario (soft delete)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -102,8 +105,10 @@ export async function DELETE(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const { id } = await context.params;
+
     // No permitir que el admin se desactive a sí mismo
-    if (session.user.id === params.id) {
+    if (session.user.id === id) {
       return NextResponse.json(
         { error: "No puede desactivarse a sí mismo" },
         { status: 400 }
@@ -111,7 +116,7 @@ export async function DELETE(
     }
 
     await prisma.usuario.update({
-      where: { id: params.id },
+      where: { id },
       data: { activo: false },
     });
 

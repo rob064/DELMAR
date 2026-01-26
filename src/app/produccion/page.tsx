@@ -32,6 +32,8 @@ interface Produccion {
   horasTrabajadas?: string;
   cantidadProducida?: string;
   montoGenerado: string;
+  horaInicio?: string;
+  horaFin?: string;
   trabajador: {
     nombres: string;
     apellidos: string;
@@ -39,6 +41,7 @@ interface Produccion {
   actividad: {
     nombre: string;
     tipoPago: string;
+    valor?: string;
   };
 }
 
@@ -46,6 +49,7 @@ export default function ProduccionPage() {
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
   const [actividades, setActividades] = useState<Actividad[]>([]);
   const [produccionHoy, setProduccionHoy] = useState<Produccion[]>([]);
+  const [actividadesActivas, setActividadesActivas] = useState<Produccion[]>([]);
   
   // Fecha para el filtro de producción (lado derecho)
   const [fechaFiltro, setFechaFiltro] = useState(getLocalDateString());
@@ -56,7 +60,6 @@ export default function ProduccionPage() {
   const [selectedTrabajador, setSelectedTrabajador] = useState("");
   const [selectedActividad, setSelectedActividad] = useState("");
   const [asistenciaDelDia, setAsistenciaDelDia] = useState<any>(null);
-  const [horasTrabajadas, setHorasTrabajadas] = useState("");
   const [cantidadProducida, setCantidadProducida] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [loading, setLoading] = useState(false);
@@ -82,26 +85,12 @@ export default function ProduccionPage() {
   useEffect(() => {
     if (selectedTrabajador && fechaRegistro) {
       obtenerAsistencia();
+      cargarActividadesActivas();
     } else {
       setAsistenciaDelDia(null);
-      setHorasTrabajadas("");
+      setActividadesActivas([]);
     }
   }, [selectedTrabajador, fechaRegistro]);
-
-  // Calcular horas trabajadas automáticamente cuando haya asistencia
-  useEffect(() => {
-    if (asistenciaDelDia?.horaEntrada && asistenciaDelDia?.horaSalida) {
-      const entrada = new Date(asistenciaDelDia.horaEntrada);
-      const salida = new Date(asistenciaDelDia.horaSalida);
-      
-      const diferenciaMs = salida.getTime() - entrada.getTime();
-      const horas = (diferenciaMs / (1000 * 60 * 60)).toFixed(2);
-      
-      setHorasTrabajadas(horas);
-    } else {
-      setHorasTrabajadas("");
-    }
-  }, [asistenciaDelDia]);
 
   const obtenerAsistencia = async () => {
     try {
@@ -116,6 +105,46 @@ export default function ProduccionPage() {
     } catch (error) {
       console.error("Error al obtener asistencia:", error);
       setAsistenciaDelDia(null);
+    }
+  };
+
+  const cargarActividadesActivas = async () => {
+    try {
+      const res = await fetch(`/api/produccion/activas?trabajadorId=${selectedTrabajador}&fecha=${fechaRegistro}`);
+      const data = await res.json();
+      setActividadesActivas(data || []);
+    } catch (error) {
+      console.error("Error al cargar actividades activas:", error);
+      setActividadesActivas([]);
+    }
+  };
+
+  const cerrarActividad = async (produccionId: string) => {
+    if (!confirm("¿Cerrar esta actividad por horas ahora?")) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/produccion/${produccionId}/cerrar`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          horaFin: new Date().toISOString(),
+        }),
+      });
+
+      if (res.ok) {
+        alert("Actividad cerrada exitosamente");
+        cargarActividadesActivas();
+        cargarDatos();
+      } else {
+        const error = await res.json();
+        alert(error.error || "Error al cerrar actividad");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al cerrar actividad");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -148,18 +177,16 @@ export default function ProduccionPage() {
     const actividad = actividades.find((a) => a.id === selectedActividad);
     if (!actividad) return;
 
-    // Validación para POR_HORA: debe tener asistencia registrada con entrada y salida
+    // Validación: No se puede registrar producción si hay actividad por horas activa
+    if (actividadesActivas.length > 0) {
+      alert("Hay actividades por horas activas. Debe cerrarlas antes de continuar.");
+      return;
+    }
+
+    // Validación para POR_HORA: debe tener asistencia registrada con entrada
     if (actividad.tipoPago === "POR_HORA") {
-      if (!asistenciaDelDia) {
+      if (!asistenciaDelDia || !asistenciaDelDia.horaEntrada) {
         alert("El trabajador no tiene asistencia registrada para esta fecha");
-        return;
-      }
-      if (!asistenciaDelDia.horaEntrada || !asistenciaDelDia.horaSalida) {
-        alert("El trabajador no tiene hora de salida registrada");
-        return;
-      }
-      if (!horasTrabajadas || parseFloat(horasTrabajadas) <= 0) {
-        alert("No se pudieron calcular las horas trabajadas");
         return;
       }
     }
@@ -185,9 +212,9 @@ export default function ProduccionPage() {
           trabajadorId: selectedTrabajador,
           actividadId: selectedActividad,
           fecha: fechaRegistro,
-          horaInicio: asistenciaDelDia?.horaEntrada || null,
-          horaFin: asistenciaDelDia?.horaSalida || null,
-          horasTrabajadas: horasTrabajadas || null,
+          horaInicio: actividad.tipoPago === "POR_HORA" ? null : undefined, // null para que el backend lo maneje
+          horaFin: null,
+          horasTrabajadas: null,
           cantidadProducida: cantidadProducida || null,
           observaciones,
         }),
@@ -198,9 +225,9 @@ export default function ProduccionPage() {
         setSelectedTrabajador("");
         setSelectedActividad("");
         setAsistenciaDelDia(null);
-        setHorasTrabajadas("");
         setCantidadProducida("");
         setObservaciones("");
+        setActividadesActivas([]);
         cargarDatos();
       } else {
         const error = await res.json();
@@ -303,6 +330,54 @@ export default function ProduccionPage() {
                 </select>
               </div>
 
+              {/* Mostrar actividades activas (por horas sin cerrar) */}
+              {actividadesActivas.length > 0 && (
+                <div className="rounded-lg border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/30 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></div>
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                      Actividades Por Horas Activas ({actividadesActivas.length})
+                    </p>
+                  </div>
+                  {actividadesActivas.map((act) => {
+                    const horaInicio = act.horaInicio ? new Date(act.horaInicio) : null;
+                    const ahora = new Date();
+                    const tiempoTranscurrido = horaInicio 
+                      ? Math.floor((ahora.getTime() - horaInicio.getTime()) / (1000 * 60)) 
+                      : 0;
+                    const horas = Math.floor(tiempoTranscurrido / 60);
+                    const minutos = tiempoTranscurrido % 60;
+
+                    return (
+                      <div key={act.id} className="bg-white dark:bg-gray-900 rounded-lg p-3 space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-sm">{act.actividad.nombre}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Inicio: {horaInicio?.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                            <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                              Tiempo: {horas}h {minutos}m
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => cerrarActividad(act.id)}
+                            disabled={loading}
+                          >
+                            Cerrar
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    ⚠️ Debe cerrar estas actividades antes de registrar producción
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Actividad</Label>
                 <select
@@ -355,19 +430,16 @@ export default function ProduccionPage() {
               )}
 
               {actividadSeleccionada?.tipoPago === "POR_HORA" && (
-                <div className="space-y-2">
-                  <Label>Horas Trabajadas (automático)</Label>
-                  <Input
-                    type="text"
-                    value={horasTrabajadas || "0.00"}
-                    readOnly
-                    className="bg-background"
-                    placeholder="Se calcula desde asistencia"
-                  />
-                  {actividadSeleccionada.tarifaPorHora && horasTrabajadas && (
+                <div className="rounded-lg border p-3 bg-green-50 dark:bg-green-950/30 space-y-2">
+                  <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                    ℹ️ Actividad Por Horas
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Se iniciará automáticamente y se debe cerrar manualmente cuando termine la actividad.
+                  </p>
+                  {actividadSeleccionada.tarifaPorHora && (
                     <p className="text-sm text-muted-foreground">
                       Tarifa: {formatCurrency(actividadSeleccionada.tarifaPorHora)}/hora
-                      {" → "}Total: {formatCurrency((parseFloat(horasTrabajadas) * parseFloat(actividadSeleccionada.tarifaPorHora)).toString())}
                     </p>
                   )}
                 </div>

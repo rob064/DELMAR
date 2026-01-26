@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 // PATCH - Editar transacción
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,12 +14,13 @@ export async function PATCH(
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
+    const { id } = await context.params;
     const body = await request.json();
     const { monto, concepto, observaciones } = body;
 
     // Verificar que la transacción no esté descontada
     const transaccion = await prisma.transaccion.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!transaccion) {
@@ -37,7 +38,7 @@ export async function PATCH(
     }
 
     const transaccionActualizada = await prisma.transaccion.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         monto: monto ? parseFloat(monto) : undefined,
         concepto: concepto || undefined,
@@ -59,7 +60,7 @@ export async function PATCH(
 // DELETE - Eliminar transacción
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -67,9 +68,11 @@ export async function DELETE(
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
+    const { id } = await context.params;
+
     // Verificar que la transacción no esté descontada
     const transaccion = await prisma.transaccion.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!transaccion) {
@@ -87,7 +90,7 @@ export async function DELETE(
     }
 
     await prisma.transaccion.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

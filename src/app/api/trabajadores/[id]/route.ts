@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 // PATCH - Actualizar trabajador
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,6 +14,7 @@ export async function PATCH(
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
+    const { id } = await context.params;
     const body = await request.json();
     const {
       email,
@@ -28,7 +29,7 @@ export async function PATCH(
       activo,
     } = body;
 
-    const trabajadorId = params.id;
+    const trabajadorId = id;
 
     // Obtener el trabajador actual
     const trabajadorActual = await prisma.trabajador.findUnique({
@@ -127,7 +128,7 @@ export async function PATCH(
 // DELETE - Desactivar trabajador (no eliminar físicamente)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -135,7 +136,8 @@ export async function DELETE(
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const trabajadorId = params.id;
+    const { id } = await context.params;
+    const trabajadorId = id;
 
     // Verificar que existe
     const trabajador = await prisma.trabajador.findUnique({

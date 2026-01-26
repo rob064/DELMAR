@@ -156,6 +156,43 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Cerrar actividades por horas activas antes de registrar la salida
+      const actividadesActivas = await prisma.produccionDiaria.findMany({
+        where: {
+          trabajadorId,
+          fecha: fechaAsistencia,
+          actividad: {
+            tipoPago: "POR_HORA",
+          },
+          horaFin: null,
+        },
+        include: {
+          actividad: true,
+        },
+      });
+
+      // Cerrar cada actividad activa con la hora de salida
+      for (const produccion of actividadesActivas) {
+        if (produccion.horaInicio) {
+          const diffMs = ahora.getTime() - produccion.horaInicio.getTime();
+          const horasTrabajadas = diffMs / (1000 * 60 * 60);
+
+          let montoGenerado = 0;
+          if (produccion.actividad.valor) {
+            montoGenerado = horasTrabajadas * Number(produccion.actividad.valor);
+          }
+
+          await prisma.produccionDiaria.update({
+            where: { id: produccion.id },
+            data: {
+              horaFin: ahora,
+              horasTrabajadas,
+              montoGenerado,
+            },
+          });
+        }
+      }
+
       asistencia = await prisma.asistencia.update({
         where: { id: asistencia.id },
         data: {

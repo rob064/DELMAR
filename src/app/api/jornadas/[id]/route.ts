@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 // GET - Obtener una jornada específica
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,8 +14,10 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const { id } = await context.params;
+
     const jornada = await prisma.jornada.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!jornada) {
@@ -35,7 +37,7 @@ export async function GET(
 // PATCH - Actualizar jornada
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -43,11 +45,12 @@ export async function PATCH(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const { id } = await context.params;
     const body = await request.json();
     const { nombre, horaInicio, horaFin, diasSemana, fechaInicio, fechaFin, esExcepcion, activo } = body;
 
     const jornada = await prisma.jornada.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(nombre !== undefined && { nombre }),
         ...(horaInicio !== undefined && { horaInicio }),
@@ -73,7 +76,7 @@ export async function PATCH(
 // DELETE - Eliminar jornada
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -81,8 +84,10 @@ export async function DELETE(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const { id } = await context.params;
+
     await prisma.jornada.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });
