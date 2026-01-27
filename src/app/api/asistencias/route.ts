@@ -336,13 +336,28 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { asistenciaId, justificada, motivoJustificacion } = body;
+    const { asistenciaId, motivoJustificacion, montoAjustePorJustificacion } = body;
+
+    if (!motivoJustificacion || motivoJustificacion.trim() === "") {
+      return NextResponse.json(
+        { error: "Debe proporcionar un motivo de justificación" },
+        { status: 400 }
+      );
+    }
+
+    if (montoAjustePorJustificacion === undefined || montoAjustePorJustificacion < 0) {
+      return NextResponse.json(
+        { error: "El monto de ajuste no puede ser negativo" },
+        { status: 400 }
+      );
+    }
 
     const asistencia = await prisma.asistencia.update({
       where: { id: asistenciaId },
       data: {
-        justificada,
+        justificada: true,
         motivoJustificacion,
+        montoAjustePorJustificacion,
       },
       include: {
         trabajador: {

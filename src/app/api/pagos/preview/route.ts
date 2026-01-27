@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
     let montoHorasExtra = new Decimal(0);
     let sueldoTrabajado = new Decimal(0);
     let salarioBasePeriodo = new Decimal(0);
+    let totalAjustesPorJustificaciones = new Decimal(0);
 
     if (esTrabajadorFijo && (trabajador as any).jornada) {
       // TRABAJADOR FIJO: Sumar campos calculados de asistencias
@@ -99,6 +100,10 @@ export async function POST(request: NextRequest) {
         if (asist.horasSuplementarias) horasSuplementarias = horasSuplementarias.add(asist.horasSuplementarias);
         if (asist.horasExtra) horasExtra = horasExtra.add(asist.horasExtra);
         if (asist.montoCalculado) sueldoTrabajado = sueldoTrabajado.add(asist.montoCalculado);
+        // Sumar ajustes por justificaciones
+        if (asist.montoAjustePorJustificacion) {
+          totalAjustesPorJustificaciones = totalAjustesPorJustificaciones.add(asist.montoAjustePorJustificacion);
+        }
       });
 
       // Calcular montos por tipo de hora
@@ -125,7 +130,8 @@ export async function POST(request: NextRequest) {
         salarioBasePeriodo = new Decimal(salarioBaseMensual.toString()).mul(diasPeriodo).div(30);
       }
 
-      montoBase = sueldoTrabajado;
+      // El monto base incluye el sueldo trabajado + ajustes por justificaciones
+      montoBase = sueldoTrabajado.add(totalAjustesPorJustificaciones);
     } else {
       // TRABAJADOR EVENTUAL: Calcular desde producción
       const produccion = await prisma.produccionDiaria.findMany({
@@ -241,6 +247,7 @@ export async function POST(request: NextRequest) {
         montoHorasSuplementarias: montoHorasSuplementarias.toString(),
         montoHorasExtra: montoHorasExtra.toString(),
         sueldoTrabajado: sueldoTrabajado.toString(),
+        totalAjustesPorJustificaciones: totalAjustesPorJustificaciones.toString(),
         
         // Descuentos y bonificaciones
         adelantos: adelantos.toString(),

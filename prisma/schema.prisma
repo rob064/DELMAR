@@ -202,8 +202,9 @@ model Asistencia {
   montoCalculado          Decimal? @db.Decimal(10, 2) // Monto total del día
   
   // Justificaciones
-  justificada       Boolean           @default(false)
-  motivoJustificacion String?
+  justificada                  Boolean  @default(false)
+  motivoJustificacion          String?
+  montoAjustePorJustificacion  Decimal? @db.Decimal(10, 2)  // Monto adicional recuperado por justificar
   
   // Registro
   registradoPor     String?           // ID del usuario que registró

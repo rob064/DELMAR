@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/navbar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDate, obtenerFechaSemana } from "@/lib/utils";
 import { DollarSign, Plus, TrendingDown, TrendingUp, X } from "lucide-react";
+import Decimal from "decimal.js";
 
 interface Trabajador {
   id: string;
@@ -104,6 +105,14 @@ export default function FinanzasPage() {
   // Editar bonificación
   const [bonificacionEditable, setBonificacionEditable] = useState("");
   const [conceptoBonificacion, setConceptoBonificacion] = useState("");
+
+  // Modal justificación
+  const [showModalJustificacion, setShowModalJustificacion] = useState(false);
+  const [asistenciaJustificar, setAsistenciaJustificar] = useState<any>(null);
+  const [justificacionForm, setJustificacionForm] = useState({
+    montoDescuentoFinal: "",
+    motivoJustificacion: "",
+  });
 
   useEffect(() => {
     cargarDatos();
@@ -304,6 +313,80 @@ export default function FinanzasPage() {
     } catch (error) {
       console.error("Error:", error);
       alert("Error al eliminar transacción");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const abrirModalJustificacion = (asistencia: any) => {
+    if (!previewData) return;
+
+    // Calcular descuento automático
+    const trabajador = previewData.trabajador;
+    const horasProgramadas = trabajador.jornada.horasDiariasBase;
+    const tarifa = new Decimal(trabajador.jornada.tarifaPorHora);
+    const horasFaltantes = horasProgramadas - asistencia.horasTrabajadas;
+    const descuentoAutomatico = tarifa.mul(horasFaltantes);
+
+    setAsistenciaJustificar(asistencia);
+    setJustificacionForm({
+      montoDescuentoFinal: descuentoAutomatico.toFixed(2),
+      motivoJustificacion: asistencia.motivoJustificacion || "",
+    });
+    setShowModalJustificacion(true);
+  };
+
+  const guardarJustificacion = async () => {
+    if (!asistenciaJustificar || !previewData) return;
+
+    const motivoTrim = justificacionForm.motivoJustificacion.trim();
+    if (!motivoTrim) {
+      alert("Debe proporcionar un motivo de justificación");
+      return;
+    }
+
+    const descuentoFinal = parseFloat(justificacionForm.montoDescuentoFinal);
+    if (isNaN(descuentoFinal) || descuentoFinal < 0) {
+      alert("El monto de descuento debe ser válido y no negativo");
+      return;
+    }
+
+    // Calcular descuento automático
+    const trabajador = previewData.trabajador;
+    const horasProgramadas = trabajador.jornada.horasDiariasBase;
+    const tarifa = new Decimal(trabajador.jornada.tarifaPorHora);
+    const horasFaltantes = horasProgramadas - asistenciaJustificar.horasTrabajadas;
+    const descuentoAutomatico = tarifa.mul(horasFaltantes).toNumber();
+
+    // Calcular ajuste (cuánto recuperamos)
+    const ajuste = descuentoAutomatico - descuentoFinal;
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/asistencias", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          asistenciaId: asistenciaJustificar.id,
+          motivoJustificacion: motivoTrim,
+          montoAjustePorJustificacion: ajuste,
+        }),
+      });
+
+      if (res.ok) {
+        alert("Justificación guardada exitosamente");
+        setShowModalJustificacion(false);
+        setAsistenciaJustificar(null);
+        setJustificacionForm({ montoDescuentoFinal: "", motivoJustificacion: "" });
+        // Recargar preview
+        await verPreviewNomina();
+      } else {
+        const error = await res.json();
+        alert(error.error || "Error al guardar justificación");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al guardar justificación");
     } finally {
       setLoading(false);
     }
@@ -872,6 +955,14 @@ export default function FinanzasPage() {
                             <span>Sueldo trabajado:</span>
                             <span className="text-green-600">{formatCurrency(previewData.resumen.sueldoTrabajado)}</span>
                           </div>
+                          {/* Ajustes por justificaciones */}
+                          {previewData.resumen.totalAjustesPorJustificaciones && 
+                           parseFloat(previewData.resumen.totalAjustesPorJustificaciones) > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-blue-600">Ajustes por justificaciones:</span>
+                              <span className="text-blue-600 font-medium">+{formatCurrency(previewData.resumen.totalAjustesPorJustificaciones)}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1137,7 +1228,11 @@ export default function FinanzasPage() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Detalle de Asistencias</CardTitle>
-                  <CardDescription>Desglose diario de horas trabajadas</CardDescription>
+                  <CardDescription>
+                    {previewData.trabajador.tipoContrato === "FIJO" 
+                      ? "Desglose diario con descuentos por atrasos/inasistencias"
+                      : "Desglose diario de horas trabajadas"}
+                  </CardDescription>
                 </div>
                 <Button
                   variant="ghost"
@@ -1150,60 +1245,281 @@ export default function FinanzasPage() {
               <CardContent className="overflow-y-auto">
                 <div className="space-y-2">
                   {previewData.asistencias && previewData.asistencias.length > 0 ? (
-                    previewData.asistencias.map((asist: any) => (
-                      <div key={asist.id} className="border rounded-lg p-3">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <p className="font-medium">{formatDate(new Date(asist.fecha))}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {asist.horaEntrada ? new Date(asist.horaEntrada).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '-'} - 
-                              {asist.horaSalida ? new Date(asist.horaSalida).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                    previewData.asistencias.map((asist: any) => {
+                      // Calcular descuento automático solo para trabajadores FIJOS
+                      const trabajador = previewData.trabajador;
+                      let descuentoAutomatico = 0;
+                      let tieneDescuento = false;
+                      
+                      if (trabajador.tipoContrato === "FIJO" && asist.horasTrabajadas) {
+                        const horasProgramadas = trabajador.jornada.horasDiariasBase;
+                        const tarifa = new Decimal(trabajador.jornada.tarifaPorHora);
+                        const horasFaltantes = horasProgramadas - asist.horasTrabajadas;
+                        if (horasFaltantes > 0) {
+                          descuentoAutomatico = tarifa.mul(horasFaltantes).toNumber();
+                          tieneDescuento = true;
+                        }
+                      }
+
+                      return (
+                        <div key={asist.id} className="border rounded-lg p-3">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="font-medium">{formatDate(new Date(asist.fecha))}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {asist.horaEntrada ? new Date(asist.horaEntrada).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '-'} - 
+                                {asist.horaSalida ? new Date(asist.horaSalida).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                              </p>
+                            </div>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              asist.estado === "PRESENTE" ? "bg-green-100 text-green-800" :
+                              asist.estado === "TARDE" ? "bg-yellow-100 text-yellow-800" :
+                              asist.estado === "FALTA" ? "bg-red-100 text-red-800" : "bg-gray-100"
+                            }`}>
+                              {asist.estado}
+                            </span>
+                          </div>
+                          
+                          {/* Para trabajador EVENTUAL - mostrar horas desglosadas */}
+                          {trabajador.tipoContrato === "EVENTUAL" && asist.horasTrabajadas && (
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Total: </span>
+                                <span className="font-medium">{Number(asist.horasTrabajadas).toFixed(2)} hrs</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Normales: </span>
+                                <span>{Number(asist.horasNormales || 0).toFixed(2)} hrs</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Suplementarias: </span>
+                                <span>{Number(asist.horasSuplementarias || 0).toFixed(2)} hrs</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Extra: </span>
+                                <span>{Number(asist.horasExtra || 0).toFixed(2)} hrs</span>
+                              </div>
+                              <div className="col-span-2 border-t pt-2 mt-1">
+                                <span className="text-muted-foreground">Monto día: </span>
+                                <span className="font-bold text-green-600">{formatCurrency(asist.montoCalculado || 0)}</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Para trabajador FIJO - mostrar horas trabajadas y descuentos */}
+                          {trabajador.tipoContrato === "FIJO" && (
+                            <div className="space-y-2">
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">Horas trabajadas: </span>
+                                  <span className="font-medium">{Number(asist.horasTrabajadas || 0).toFixed(2)} hrs</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Monto base: </span>
+                                  <span className="font-medium text-green-600">{formatCurrency(asist.montoCalculado || 0)}</span>
+                                </div>
+                              </div>
+
+                              {/* Mostrar descuento si existe */}
+                              {tieneDescuento && (
+                                <div className="bg-red-50 border border-red-200 rounded p-2">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs font-medium text-red-800">
+                                      {asist.estado === "FALTA" ? "⚠️ INASISTENCIA" : "⏰ ATRASO"}
+                                    </span>
+                                    {!asist.justificada && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-6 text-xs"
+                                        onClick={() => abrirModalJustificacion(asist)}
+                                      >
+                                        Justificar
+                                      </Button>
+                                    )}
+                                  </div>
+                                  <div className="text-xs space-y-1">
+                                    <div className="flex justify-between">
+                                      <span className="text-muted-foreground">Descuento automático:</span>
+                                      <span className="font-medium text-red-600">-{formatCurrency(descuentoAutomatico)}</span>
+                                    </div>
+                                    {asist.justificada && asist.montoAjustePorJustificacion && (
+                                      <>
+                                        <div className="flex justify-between text-green-700">
+                                          <span>Monto recuperado:</span>
+                                          <span className="font-medium">+{formatCurrency(asist.montoAjustePorJustificacion)}</span>
+                                        </div>
+                                        <div className="border-t border-red-300 pt-1 mt-1">
+                                          <div className="flex justify-between font-medium">
+                                            <span>Descuento aplicado:</span>
+                                            <span className="text-red-700">-{formatCurrency(descuentoAutomatico - Number(asist.montoAjustePorJustificacion))}</span>
+                                          </div>
+                                        </div>
+                                        <div className="bg-blue-50 border border-blue-200 rounded p-1 mt-1">
+                                          <p className="text-[10px] text-blue-800">
+                                            <strong>Motivo:</strong> {asist.motivoJustificacion}
+                                          </p>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Monto total del día */}
+                              <div className="border-t pt-2">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm text-muted-foreground">Monto total día:</span>
+                                  <span className="text-lg font-bold text-green-600">
+                                    {formatCurrency(
+                                      Number(asist.montoCalculado || 0) + 
+                                      Number(asist.montoAjustePorJustificacion || 0)
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {asist.observaciones && (
+                            <p className="text-xs text-muted-foreground mt-2 border-t pt-2">
+                              {asist.observaciones}
                             </p>
-                          </div>
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            asist.estado === "PRESENTE" ? "bg-green-100 text-green-800" :
-                            asist.estado === "TARDE" ? "bg-yellow-100 text-yellow-800" :
-                            asist.estado === "FALTA" ? "bg-red-100 text-red-800" : "bg-gray-100"
-                          }`}>
-                            {asist.estado}
-                          </span>
+                          )}
                         </div>
-                        {asist.horasTrabajadas && (
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">Total: </span>
-                              <span className="font-medium">{Number(asist.horasTrabajadas).toFixed(2)} hrs</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Normales: </span>
-                              <span>{Number(asist.horasNormales || 0).toFixed(2)} hrs</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Suplementarias: </span>
-                              <span>{Number(asist.horasSuplementarias || 0).toFixed(2)} hrs</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Extra: </span>
-                              <span>{Number(asist.horasExtra || 0).toFixed(2)} hrs</span>
-                            </div>
-                            <div className="col-span-2 border-t pt-2 mt-1">
-                              <span className="text-muted-foreground">Monto día: </span>
-                              <span className="font-bold text-green-600">{formatCurrency(asist.montoCalculado || 0)}</span>
-                            </div>
-                          </div>
-                        )}
-                        {asist.observaciones && (
-                          <p className="text-xs text-muted-foreground mt-2 border-t pt-2">
-                            {asist.observaciones}
-                          </p>
-                        )}
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <p className="text-center text-muted-foreground py-8">No hay asistencias registradas</p>
                   )}
                 </div>
               </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Modal Justificar Asistencia */}
+        {showModalJustificacion && asistenciaJustificar && previewData && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[70]">
+            <Card className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle>Justificar Atraso/Inasistencia</CardTitle>
+                <CardDescription>
+                  {formatDate(new Date(asistenciaJustificar.fecha))}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Información de la asistencia */}
+                <div className="bg-gray-50 border rounded p-3 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Horas trabajadas:</span>
+                    <span className="font-medium">{Number(asistenciaJustificar.horasTrabajadas || 0).toFixed(2)} hrs</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Monto ganado:</span>
+                    <span className="font-medium text-green-600">{formatCurrency(asistenciaJustificar.montoCalculado || 0)}</span>
+                  </div>
+                  <div className="border-t pt-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Descuento automático:</span>
+                      <span className="font-medium text-red-600">
+                        -{formatCurrency(
+                          new Decimal(previewData.trabajador.jornada.tarifaPorHora)
+                            .mul(previewData.trabajador.jornada.horasDiariasBase - asistenciaJustificar.horasTrabajadas)
+                            .toNumber()
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Input monto descuento final */}
+                <div>
+                  <Label htmlFor="montoDescuentoFinal">Monto de descuento a aplicar ($)</Label>
+                  <Input
+                    id="montoDescuentoFinal"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={justificacionForm.montoDescuentoFinal}
+                    onChange={(e) =>
+                      setJustificacionForm({
+                        ...justificacionForm,
+                        montoDescuentoFinal: e.target.value,
+                      })
+                    }
+                    placeholder="0.00"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Edite este valor para perdonar parcial o totalmente el descuento
+                  </p>
+                </div>
+
+                {/* Preview del cálculo */}
+                {justificacionForm.montoDescuentoFinal && !isNaN(parseFloat(justificacionForm.montoDescuentoFinal)) && (
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3 space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span>Descuento automático:</span>
+                      <span className="font-medium">
+                        {formatCurrency(
+                          new Decimal(previewData.trabajador.jornada.tarifaPorHora)
+                            .mul(previewData.trabajador.jornada.horasDiariasBase - asistenciaJustificar.horasTrabajadas)
+                            .toNumber()
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Descuento aplicado:</span>
+                      <span className="font-medium text-red-600">
+                        -{formatCurrency(parseFloat(justificacionForm.montoDescuentoFinal))}
+                      </span>
+                    </div>
+                    <div className="border-t border-blue-300 pt-1 flex justify-between">
+                      <span className="font-bold">Monto recuperado:</span>
+                      <span className="font-bold text-green-600">
+                        +{formatCurrency(
+                          new Decimal(previewData.trabajador.jornada.tarifaPorHora)
+                            .mul(previewData.trabajador.jornada.horasDiariasBase - asistenciaJustificar.horasTrabajadas)
+                            .sub(parseFloat(justificacionForm.montoDescuentoFinal))
+                            .toNumber()
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Motivo justificación */}
+                <div>
+                  <Label htmlFor="motivoJustificacion">Motivo de justificación *</Label>
+                  <textarea
+                    id="motivoJustificacion"
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={justificacionForm.motivoJustificacion}
+                    onChange={(e) =>
+                      setJustificacionForm({
+                        ...justificacionForm,
+                        motivoJustificacion: e.target.value,
+                      })
+                    }
+                    placeholder="Ej: Cita médica, emergencia familiar, etc."
+                  />
+                </div>
+              </CardContent>
+              <CardFooter className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowModalJustificacion(false);
+                    setAsistenciaJustificar(null);
+                    setJustificacionForm({ montoDescuentoFinal: "", motivoJustificacion: "" });
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button onClick={guardarJustificacion} disabled={loading}>
+                  {loading ? "Guardando..." : "Guardar Justificación"}
+                </Button>
+              </CardFooter>
             </Card>
           </div>
         )}
