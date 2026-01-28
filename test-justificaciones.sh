@@ -1,0 +1,81 @@
+#!/bin/bash
+# Script de testing manual para el sistema de justificaciones
+
+echo "======================================"
+echo "TESTING: Sistema de Justificaciones"
+echo "======================================"
+echo ""
+
+# Verificar que la migración se aplicó
+echo "1. Verificando estructura de la base de datos..."
+npx prisma db pull --force 2>/dev/null && echo "✅ Schema actualizado desde BD" || echo "❌ Error al verificar BD"
+echo ""
+
+# Verificar campo en schema
+echo "2. Verificando campo montoAjustePorJustificacion en schema..."
+if grep -q "montoAjustePorJustificacion" prisma/schema.prisma; then
+    echo "✅ Campo encontrado en schema"
+else
+    echo "❌ Campo NO encontrado en schema"
+fi
+echo ""
+
+# Verificar que Prisma Client esté actualizado
+echo "3. Verificando Prisma Client..."
+npx prisma generate >/dev/null 2>&1 && echo "✅ Prisma Client generado" || echo "❌ Error al generar Prisma Client"
+echo ""
+
+# Verificar que el servidor compile sin errores
+echo "4. Verificando compilación TypeScript..."
+npm run build >/dev/null 2>&1 && echo "✅ Proyecto compila sin errores" || echo "⚠️ Hay errores de compilación (revisar con 'npm run build')"
+echo ""
+
+echo "======================================"
+echo "TESTING MANUAL RECOMENDADO:"
+echo "======================================"
+echo ""
+echo "1. Navegar a http://localhost:3000/finanzas"
+echo "2. Seleccionar un trabajador FIJO"
+echo "3. Seleccionar período con asistencias"
+echo "4. Click en 'Ver Preview Nómina'"
+echo "5. Click en 'VER' en 'Sueldo trabajado'"
+echo "6. Verificar que aparecen descuentos (si hay atrasos/faltas)"
+echo "7. Click en 'Justificar' en un día con descuento"
+echo "8. Editar monto de descuento final"
+echo "9. Escribir motivo de justificación"
+echo "10. Click en 'Guardar Justificación'"
+echo "11. Verificar que el modal se actualiza con el ajuste"
+echo "12. Verificar que el resumen muestra 'Ajustes por justificaciones'"
+echo "13. Generar nómina y verificar en BD que se guardó correctamente"
+echo ""
+echo "======================================"
+echo "CASOS DE PRUEBA ESPECÍFICOS:"
+echo "======================================"
+echo ""
+echo "CASO 1: Atraso de 30 minutos"
+echo "  - Trabajador con 7.5 hrs trabajadas"
+echo "  - Descuento automático: ~\$1.36 (asumiendo \$2.71/hr)"
+echo "  - Justificar con descuento final: \$0.50"
+echo "  - Esperado: Ajuste = \$0.86"
+echo ""
+echo "CASO 2: Perdonar completamente"
+echo "  - Poner descuento final en \$0.00"
+echo "  - Esperado: Ajuste = descuento automático completo"
+echo ""
+echo "CASO 3: Trabajador EVENTUAL"
+echo "  - Verificar que NO aparece sistema de justificaciones"
+echo "  - Solo debe mostrar desglose de horas"
+echo ""
+echo "======================================"
+echo "VERIFICACIÓN EN BASE DE DATOS:"
+echo "======================================"
+echo ""
+echo "Después de justificar, ejecutar:"
+echo "  npx prisma studio"
+echo ""
+echo "Verificar en tabla 'Asistencia':"
+echo "  - justificada = true"
+echo "  - motivoJustificacion = texto ingresado"
+echo "  - montoAjustePorJustificacion = monto calculado"
+echo ""
+echo "======================================"
