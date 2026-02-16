@@ -37,6 +37,7 @@ interface Jornada {
   horaInicio: string;
   horaFin: string;
   salarioBaseMensual: number;
+  activo: boolean;
 }
 
 export default function TrabajadoresPage() {
