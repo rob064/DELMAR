@@ -1229,7 +1229,7 @@ export default function FinanzasPage() {
                 <div>
                   <CardTitle>Detalle de Asistencias</CardTitle>
                   <CardDescription>
-                    {previewData.trabajador.tipoContrato === "FIJO" 
+                    {previewData.trabajador.tipoTrabajador === "FIJO" 
                       ? "Desglose diario con descuentos por atrasos/inasistencias"
                       : "Desglose diario de horas trabajadas"}
                   </CardDescription>
@@ -1251,7 +1251,7 @@ export default function FinanzasPage() {
                       let descuentoAutomatico = 0;
                       let tieneDescuento = false;
                       
-                      if (trabajador.tipoContrato === "FIJO" && asist.horasTrabajadas) {
+                      if (trabajador.tipoTrabajador === "FIJO" && asist.horasTrabajadas) {
                         const horasProgramadas = trabajador.jornada.horasDiariasBase;
                         const tarifa = new Decimal(trabajador.jornada.tarifaPorHora);
                         const horasFaltantes = horasProgramadas - asist.horasTrabajadas;
@@ -1281,7 +1281,7 @@ export default function FinanzasPage() {
                           </div>
                           
                           {/* Para trabajador EVENTUAL - mostrar horas desglosadas */}
-                          {trabajador.tipoContrato === "EVENTUAL" && asist.horasTrabajadas && (
+                          {trabajador.tipoTrabajador === "EVENTUAL" && asist.horasTrabajadas && (
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div>
                                 <span className="text-muted-foreground">Total: </span>
@@ -1307,7 +1307,7 @@ export default function FinanzasPage() {
                           )}
 
                           {/* Para trabajador FIJO - mostrar horas trabajadas y descuentos */}
-                          {trabajador.tipoContrato === "FIJO" && (
+                          {trabajador.tipoTrabajador === "FIJO" && (
                             <div className="space-y-2">
                               <div className="grid grid-cols-2 gap-2 text-sm">
                                 <div>
