@@ -428,14 +428,14 @@ export default function PuertaPage() {
                               Sin entrada
                             </div>
                           )}
-                          {tieneEntrada && !tieneSalida && (
+                          {tieneEntrada && !tieneSalida && asistencia?.horaEntrada && (
                             <div className="space-y-1">
                               <div className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
                                 <LogIn className="h-3 w-3" />
                                 Entrada registrada
                               </div>
                               <p className="text-xs text-muted-foreground">
-                                {formatTime(new Date(asistencia.horaEntrada))}
+                                {formatTime(new Date(asistencia.horaEntrada!))}
                               </p>
                             </div>
                           )}
@@ -658,13 +658,13 @@ export default function PuertaPage() {
                         {asistencia.horaEntrada && (
                           <div className="flex items-center gap-1.5 text-sm">
                             <LogIn className="h-3 w-3 text-muted-foreground" />
-                            <span>{formatTime(new Date(asistencia.horaEntrada))}</span>
+                            <span>{formatTime(new Date(asistencia.horaEntrada!))}</span>
                           </div>
                         )}
                         {asistencia.horaSalida && (
                           <div className="flex items-center gap-1.5 text-sm">
                             <LogOut className="h-3 w-3 text-muted-foreground" />
-                            <span>{formatTime(new Date(asistencia.horaSalida))}</span>
+                            <span>{formatTime(new Date(asistencia.horaSalida!))}</span>
                           </div>
                         )}
                         {asistencia.minutosRetraso > 0 && (() => {
