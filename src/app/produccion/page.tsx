@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDate, formatCurrency, getLocalDateString } from "@/lib/utils";
-import { Package, Plus } from "lucide-react";
+import { Package, Plus, Clock, CheckCircle2, TrendingUp, DollarSign, Activity, AlertCircle } from "lucide-react";
 
 interface Trabajador {
   id: string;
@@ -456,17 +456,29 @@ export default function ProduccionPage() {
     }
   };
 
+  // Stats del día
+  const statsDelDia = {
+    totalRegistros: produccionHoy.length,
+    actividadesCompletadas: produccionHoy.filter(p => 
+      p.actividad.tipoPago === "POR_UNIDAD" || (p.actividad.tipoPago === "POR_HORA" && p.horaFin)
+    ).length,
+    actividadesActivas: actividadesActivas.length,
+    montoTotal: produccionHoy.reduce((sum, p) => sum + parseFloat(p.montoGenerado), 0),
+  };
+
   return (
     <div className="min-h-screen bg-muted/30">
       <Navbar />
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Módulo de Producción</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-700 bg-clip-text text-transparent">
+              Módulo de Producción
+            </h1>
             <p className="text-muted-foreground">Registro de actividades y producción diaria</p>
           </div>
-          <Button onClick={() => setShowNuevaActividad(true)}>
-            <Plus className="mr-2 h-4 w-4" />
+          <Button onClick={() => setShowNuevaActividad(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
             Nueva Actividad
           </Button>
         </div>
@@ -505,10 +517,14 @@ export default function ProduccionPage() {
 
               {/* Mostrar actividades activas (por horas sin cerrar) */}
               {actividadesActivas.length > 0 && (
-                <div className="rounded-lg border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/30 p-4 space-y-3">
+                <div className="rounded-lg border-2 border-warning bg-warning/5 p-4 space-y-3">
                   <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></div>
-                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                    <div className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-warning opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-warning"></span>
+                    </div>
+                    <p className="text-sm font-semibold text-warning flex items-center gap-2">
+                      <Activity className="h-4 w-4" />
                       Actividades Por Horas Activas ({actividadesActivas.length})
                     </p>
                   </div>
@@ -522,22 +538,27 @@ export default function ProduccionPage() {
                     const minutos = tiempoTranscurrido % 60;
 
                     return (
-                      <div key={act.id} className="bg-white dark:bg-gray-900 rounded-lg p-3 space-y-2">
+                      <div key={act.id} className="bg-background rounded-lg border p-3 space-y-2 shadow-sm">
                         <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium text-sm">{act.actividad.nombre}</p>
-                            <p className="text-xs text-muted-foreground">
+                          <div className="flex-1">
+                            <p className="font-medium text-sm flex items-center gap-2">
+                              <Clock className="h-3.5 w-3.5 text-warning" />
+                              {act.actividad.nombre}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
                               Inicio: {horaInicio?.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
                             </p>
-                            <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
-                              Tiempo: {horas}h {minutos}m
-                            </p>
+                            <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning">
+                              <TrendingUp className="h-3 w-3" />
+                              {horas}h {minutos}m transcurridos
+                            </div>
                           </div>
                           <Button
                             size="sm"
                             variant="destructive"
                             onClick={() => cerrarActividad(act.id)}
                             disabled={loading}
+                            className="h-8"
                           >
                             Cerrar
                           </Button>
@@ -545,9 +566,12 @@ export default function ProduccionPage() {
                       </div>
                     );
                   })}
-                  <p className="text-xs text-amber-700 dark:text-amber-300">
-                    ⚠️ Debe cerrar estas actividades antes de registrar producción
-                  </p>
+                  <div className="flex items-start gap-2 rounded-md bg-warning/10 p-2">
+                    <AlertCircle className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-warning">
+                      Debe cerrar estas actividades antes de registrar nueva producción
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -718,8 +742,67 @@ export default function ProduccionPage() {
                 />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="max-h-[500px] space-y-3 overflow-y-auto">
+            <CardContent className="space-y-4">
+              {/* Stats del día */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border bg-gradient-to-br from-primary/5 to-blue-50/50 dark:from-primary/5 dark:to-blue-950/20 p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-md bg-primary/10 p-2">
+                      <Package className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{statsDelDia.totalRegistros}</p>
+                      <p className="text-xs text-muted-foreground">Registros</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="rounded-lg border bg-gradient-to-br from-success/5 to-green-50/50 dark:from-success/5 dark:to-green-950/20 p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-md bg-success/10 p-2">
+                      <CheckCircle2 className="h-4 w-4 text-success" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{statsDelDia.actividadesCompletadas}</p>
+                      <p className="text-xs text-muted-foreground">Completadas</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {statsDelDia.actividadesActivas > 0 && (
+                  <div className="rounded-lg border bg-gradient-to-br from-warning/5 to-amber-50/50 dark:from-warning/5 dark:to-amber-950/20 p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-md bg-warning/10 p-2">
+                        <Activity className="h-4 w-4 text-warning" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold">{statsDelDia.actividadesActivas}</p>
+                        <p className="text-xs text-muted-foreground">Activas</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className={`rounded-lg border bg-gradient-to-br from-emerald-50/50 to-emerald-100/30 dark:from-emerald-950/20 dark:to-emerald-900/10 p-3 ${statsDelDia.actividadesActivas === 0 ? 'col-span-1' : ''}`}>
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-md bg-emerald-100/50 dark:bg-emerald-900/30 p-2">
+                      <DollarSign className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
+                        {formatCurrency(statsDelDia.montoTotal)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Total del día</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t" />
+
+              {/* Lista de producción */}
+              <div className="max-h-[380px] space-y-3 overflow-y-auto">
                 {produccionHoy.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
                     No hay registros para hoy
@@ -733,61 +816,84 @@ export default function ProduccionPage() {
                     return (
                       <div 
                         key={prod.id} 
-                        className={`rounded-lg border p-3 space-y-2 ${
+                        className={`rounded-lg border p-3 space-y-2 transition-all ${
                           esActiva 
-                            ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/30 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors' 
-                            : ''
+                            ? 'border-warning bg-warning/5 cursor-pointer hover:bg-warning/10 hover:shadow-md' 
+                            : 'hover:bg-accent/50'
                         }`}
                         onClick={() => esActiva && abrirModalCerrar(prod)}
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-medium">
                                 {prod.trabajador.nombres} {prod.trabajador.apellidos}
                               </p>
                               {esActiva && (
-                                <span className="flex items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                                  <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></div>
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-warning bg-warning/10 px-2.5 py-0.5 text-xs font-semibold text-warning">
+                                  <Activity className="h-3 w-3 animate-pulse" />
                                   ACTIVA
                                 </span>
                               )}
+                              {!esActiva && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-success bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  COMPLETADA
+                                </span>
+                              )}
                             </div>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-sm text-muted-foreground mt-1">
                               {prod.actividad.nombre}
-                              {prod.actividad.tipoPago === "POR_HORA" ? " (Por Hora)" : " (Por Producción)"}
                             </p>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
+                                prod.actividad.tipoPago === "POR_HORA" 
+                                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                                  : "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                              }`}>
+                                <Clock className="h-3 w-3 mr-1" />
+                                {prod.actividad.tipoPago === "POR_HORA" ? "Por Hora" : "Por Producción"}
+                              </span>
+                            </div>
                             {esActiva && (
-                              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                                👆 Click para cerrar con hora personalizada
+                              <p className="text-xs text-warning mt-2 flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                Click para cerrar con hora personalizada
                               </p>
                             )}
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-primary">
+                            <p className="text-xl font-bold text-primary">
                               {formatCurrency(prod.montoGenerado)}
                             </p>
                           </div>
                         </div>
                         
-                        <div className="flex gap-4 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                           {prod.actividad.tipoPago === "POR_HORA" && (
                             <>
                               {horaInicio && (
-                                <span>Inicio: {horaInicio.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}</span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3.5 w-3.5" />
+                                  {horaInicio.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
                               )}
                               {horaFin && (
-                                <span>Fin: {horaFin.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}</span>
+                                <span className="flex items-center gap-1">
+                                  → {horaFin.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
                               )}
                               {prod.horasTrabajadas && (
-                                <span className="font-medium text-foreground">
+                                <span className="font-medium text-foreground flex items-center gap-1">
+                                  <TrendingUp className="h-3.5 w-3.5" />
                                   {Number(prod.horasTrabajadas).toFixed(2)} horas
                                 </span>
                               )}
                             </>
                           )}
                           {prod.cantidadProducida && (
-                            <span className="font-medium text-foreground">
+                            <span className="font-medium text-foreground flex items-center gap-1">
+                              <Package className="h-3.5 w-3.5" />
                               {prod.cantidadProducida} unidades
                             </span>
                           )}
