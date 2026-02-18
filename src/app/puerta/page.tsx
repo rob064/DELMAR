@@ -113,7 +113,7 @@ export default function PuertaPage() {
     }
 
     // Validar que no se registre salida sin entrada
-    let turnoParaEnviar = turnoProgramado;
+    let turnoParaEnviar: string | undefined = turnoProgramado;
     if (tipo === "salida") {
       const asistenciaExistente = asistenciasHoy.find(
         (a) => a.trabajadorId === selectedTrabajador
@@ -129,7 +129,7 @@ export default function PuertaPage() {
         return;
       }
       
-      // Al registrar salida, usar el turno de la entrada registrada
+      // Al registrar salida, usar el turno de la entrada registrada (para cálculos)
       turnoParaEnviar = asistenciaExistente.turnoProgramado || undefined;
     }
 
