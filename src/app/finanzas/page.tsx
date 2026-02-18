@@ -677,7 +677,7 @@ export default function FinanzasPage() {
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
                           <span className="text-muted-foreground">Base: </span>
-                          <span>{formatCurrency(pago.montoBase)}</span>
+                          <span>{formatCurrency(pago.salarioBasePeriodo || pago.montoBase)}</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Adelantos: </span>
@@ -685,7 +685,7 @@ export default function FinanzasPage() {
                         </div>
                         <div>
                           <span className="text-muted-foreground">Multas: </span>
-                          <span className="text-red-600">-{formatCurrency(pago.multas)}</span>
+                          <span className="text-red-600">-{formatCurrency(pago.multasTransacciones || 0)}</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Neto: </span>
@@ -913,28 +913,43 @@ export default function FinanzasPage() {
 
         {/* Modal Vista Previa Nómina */}
         {showPreviewNomina && previewData && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <Card className="w-full max-w-4xl my-8">
-              <CardHeader>
-                <CardTitle>Vista Previa de Nómina</CardTitle>
-                <CardDescription>
-                  {previewData.trabajador.nombres} {previewData.trabajador.apellidos} - DNI: {previewData.trabajador.dni}
-                  {previewData.trabajador.tipoTrabajador && (
-                    <span className={`ml-2 text-xs px-2 py-1 rounded ${
-                      previewData.trabajador.tipoTrabajador === "FIJO" 
-                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" 
-                        : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-                    }`}>
-                      {previewData.trabajador.tipoTrabajador}
-                    </span>
-                  )}
-                </CardDescription>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50">
+            <Card className="w-full max-w-5xl max-h-[95vh] flex flex-col">
+              <CardHeader className="pb-3 space-y-1">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg sm:text-xl">Vista Previa de Nómina</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm mt-1">
+                      {previewData.trabajador.nombres} {previewData.trabajador.apellidos} - DNI: {previewData.trabajador.dni}
+                      {previewData.trabajador.tipoTrabajador && (
+                        <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
+                          previewData.trabajador.tipoTrabajador === "FIJO" 
+                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" 
+                            : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                        }`}>
+                          {previewData.trabajador.tipoTrabajador}
+                        </span>
+                      )}
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setShowPreviewNomina(false);
+                      setPreviewData(null);
+                    }}
+                    className="h-8 w-8"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="flex-1 overflow-y-auto space-y-4 px-4 sm:px-6">
                 {/* Información del período */}
-                <div className="rounded-lg border bg-muted/50 p-4">
-                  <h3 className="font-medium mb-2">Período</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="rounded-lg border bg-muted/50 p-3">
+                  <h3 className="font-medium text-sm mb-2">Período</h3>
+                  <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
                     <div>Inicio: {formatDate(new Date(previewData.periodo.fechaInicio))}</div>
                     <div>Fin: {formatDate(new Date(previewData.periodo.fechaFin))}</div>
                     <div>Días del período: {previewData.periodo.diasPeriodo}</div>
@@ -944,9 +959,9 @@ export default function FinanzasPage() {
 
                 {/* Resumen financiero - TRABAJADOR FIJO */}
                 {previewData.trabajador.tipoTrabajador === "FIJO" && (
-                  <div className="rounded-lg border p-4">
-                    <h3 className="font-medium mb-3">Resumen Financiero - Trabajador FIJO</h3>
-                    <div className="space-y-2 text-sm">
+                  <div className="rounded-lg border p-3">
+                    <h3 className="font-medium text-sm mb-3">Resumen Financiero - Trabajador FIJO</h3>
+                    <div className="space-y-2 text-xs sm:text-sm">
                       {/* Salario base */}
                       <div className="flex justify-between bg-blue-50 dark:bg-blue-950/30 p-2 rounded">
                         <span className="font-medium">Salario base periodo:</span>
@@ -961,6 +976,7 @@ export default function FinanzasPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => setShowDetalleAsistencias(true)}
+                            className="h-7 text-xs"
                           >
                             VER DETALLE
                           </Button>
@@ -1060,14 +1076,16 @@ export default function FinanzasPage() {
                         <span className="font-bold text-lg">Total Neto:</span>
                         <span className="font-bold text-lg text-blue-600">
                           {formatCurrency(
-                            parseFloat(previewData.resumen.salarioBasePeriodo || "0") +
-                            parseFloat(bonificacionEditable || "0") -
+                            parseFloat(previewData.resumen.salarioBasePeriodo || "0") -
                             parseFloat(previewData.resumen.adelantos || "0") -
                             parseFloat(previewData.resumen.multasTransacciones || "0") +
                             parseFloat(previewData.resumen.ajustes || "0")
                           )}
                         </span>
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Salario base garantizado menos descuentos externos
+                      </p>
                     </div>
                   </div>
                 )}
@@ -1161,34 +1179,38 @@ export default function FinanzasPage() {
                 )}
 
                 {previewData.pagoExistente && (
-                  <div className="rounded-lg border border-orange-200 bg-orange-50 dark:bg-orange-950/20 p-4">
-                    <p className="text-sm text-orange-800 dark:text-orange-200">
+                  <div className="rounded-lg border border-orange-200 bg-orange-50 dark:bg-orange-950/20 p-3">
+                    <p className="text-xs sm:text-sm text-orange-800 dark:text-orange-200">
                       ⚠️ Ya existe una nómina generada para este período
                     </p>
                   </div>
                 )}
-
-                <div className="flex gap-2">
-                  <Button
-                    onClick={generarNomina}
-                    disabled={loading || previewData.pagoExistente}
-                    className="flex-1"
-                  >
-                    <DollarSign className="mr-2 h-4 w-4" />
-                    Confirmar y Generar Nómina
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setShowPreviewNomina(false);
-                      setPreviewData(null);
-                    }}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    Cancelar
-                  </Button>
-                </div>
               </CardContent>
+              
+              <CardFooter className="flex-shrink-0 gap-2 border-t pt-4 px-4 sm:px-6">
+                <Button
+                  onClick={generarNomina}
+                  disabled={loading || previewData.pagoExistente}
+                  className="flex-1"
+                  size="sm"
+                >
+                  <DollarSign className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Confirmar y </span>Generar Nómina
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowPreviewNomina(false);
+                    setPreviewData(null);
+                    setBonificacionEditable("");
+                    setConceptoBonificacion("");
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                  size="sm"
+                >
+                  Cancelar
+                </Button>
+              </CardFooter>
             </Card>
           </div>
         )}

@@ -252,7 +252,10 @@ export async function POST(request: NextRequest) {
       let bonificacionCalculadaFinal = new Decimal(0);
 
       // Calcular bonificación automática
-      const diferencia = salarioBasePeriodo.sub(sueldoTrabajado);
+      // Fórmula: Valor a Pagar = Sueldo Trabajado - Descuentos + Ajustes Justificaciones
+      //          Bonificación = Salario Base - Valor a Pagar
+      const valorAPagar = sueldoTrabajado.sub(totalDescuentos).add(totalAjustesPorJustificaciones);
+      const diferencia = salarioBasePeriodo.sub(valorAPagar);
       if (diferencia.greaterThan(0)) {
         bonificacionCalculadaFinal = diferencia;
       }
@@ -270,14 +273,12 @@ export async function POST(request: NextRequest) {
       }
 
       // Calcular totalNeto para FIJOS
-      // Fórmula: salarioBase + bonificacion - adelantos - multas + ajustes - descuentos + ajustesPorJustificaciones
+      // Fórmula: Salario Base - Adelantos - Multas + Ajustes
+      // (El salario base ya incluye el trabajo realizado + bonificación para alcanzarlo)
       totalNeto = salarioBasePeriodo
-        .add(bonificacionFinal)
         .sub(adelantos)
         .sub(multasTransacciones)
-        .add(ajustes)
-        .sub(totalDescuentos)
-        .add(totalAjustesPorJustificaciones);
+        .add(ajustes);
 
       // Agregar campos específicos de FIJOS
       pagoData = {

@@ -189,9 +189,25 @@ export async function POST(request: NextRequest) {
     // Calcular bonificación para trabajadores FIJOS
     let bonificacionCalculada = new Decimal(0);
     if (esTrabajadorFijo) {
-      // FÓRMULA CORRECTA: bonificación = salarioBase - sueldoTrabajado (sin restar multas)
-      // Las multas se descuentan del totalNeto final
-      const diferencia = salarioBasePeriodo.sub(sueldoTrabajado);
+      // FÓRMULA CORRECTA: 
+      // Valor a Pagar = Sueldo Trabajado - Descuentos + Ajustes Justificaciones
+      // Bonificación = Salario Base - Valor a Pagar
+      // Calcular descuentos automáticos
+      let totalDescuentos = new Decimal(0);
+      asistencias.forEach((asist: any) => {
+        if (asist.horasTrabajadas && (trabajador as any).jornada) {
+          const horasProgramadas = (trabajador as any).jornada.horasDiariasBase;
+          const tarifa = (trabajador as any).tarifaPorHoraPersonalizada ?? (trabajador as any).jornada.tarifaPorHora;
+          const horasFaltantes = new Decimal(horasProgramadas).sub(asist.horasTrabajadas);
+          if (horasFaltantes.greaterThan(0)) {
+            const descuento = new Decimal(tarifa.toString()).mul(horasFaltantes);
+            totalDescuentos = totalDescuentos.add(descuento);
+          }
+        }
+      });
+      
+      const valorAPagar = sueldoTrabajado.sub(totalDescuentos).add(totalAjustesPorJustificaciones);
+      const diferencia = salarioBasePeriodo.sub(valorAPagar);
       if (diferencia.greaterThan(0)) {
         bonificacionCalculada = diferencia;
       }
@@ -200,8 +216,8 @@ export async function POST(request: NextRequest) {
     // Calcular total neto
     let totalNeto = new Decimal(0);
     if (esTrabajadorFijo) {
-      // Para FIJOS: salarioBase + bonificacion - adelantos - multas + ajustes
-      totalNeto = salarioBasePeriodo.add(bonificacionCalculada).sub(adelantos).sub(multasTransacciones).add(ajustes);
+      // Para FIJOS: salarioBase - adelantos - multas + ajustes
+      totalNeto = salarioBasePeriodo.sub(adelantos).sub(multasTransacciones).add(ajustes);
     } else {
       // Para EVENTUALES: montoBase - adelantos - multas + ajustes
       totalNeto = montoBase.sub(adelantos).sub(multasTransacciones).add(ajustes);
