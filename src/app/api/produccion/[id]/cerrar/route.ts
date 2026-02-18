@@ -60,8 +60,15 @@ export async function PATCH(
     // Determinar hora fin (usar proporcionada o actual)
     const horaFinDate = horaFin ? new Date(horaFin) : new Date();
 
+    // Normalizar hora inicio y fin a minutos para comparación
+    const horaInicioNormalizada = new Date(produccion.horaInicio);
+    horaInicioNormalizada.setSeconds(0, 0);
+    
+    const horaFinNormalizadaTemp = new Date(horaFinDate);
+    horaFinNormalizadaTemp.setSeconds(0, 0);
+
     // Validar que hora fin sea posterior a hora inicio
-    if (horaFinDate <= produccion.horaInicio) {
+    if (horaFinNormalizadaTemp <= horaInicioNormalizada) {
       return NextResponse.json(
         { error: "La hora de fin debe ser posterior a la hora de inicio" },
         { status: 400 }
@@ -85,20 +92,32 @@ export async function PATCH(
       );
     }
 
+    // Normalizar fechas a minutos (eliminar segundos y milisegundos)
+    const horaEntrada = new Date(asistencia.horaEntrada);
+    horaEntrada.setSeconds(0, 0);
+    
+    const horaSalida = asistencia.horaSalida ? new Date(asistencia.horaSalida) : null;
+    if (horaSalida) {
+      horaSalida.setSeconds(0, 0);
+    }
+
+    const horaFinNormalizada = new Date(horaFinDate);
+    horaFinNormalizada.setSeconds(0, 0);
+
     // Validar que hora fin esté dentro del rango de entrada/salida
-    if (horaFinDate < asistencia.horaEntrada) {
+    if (horaFinNormalizada < horaEntrada) {
       return NextResponse.json(
         { 
-          error: `La hora de finalización no puede ser anterior a la hora de entrada en puerta (${asistencia.horaEntrada.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
+          error: `La hora de finalización no puede ser anterior a la hora de entrada en puerta (${horaEntrada.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
         },
         { status: 400 }
       );
     }
 
-    if (asistencia.horaSalida && horaFinDate > asistencia.horaSalida) {
+    if (horaSalida && horaFinNormalizada > horaSalida) {
       return NextResponse.json(
         { 
-          error: `La hora de finalización no puede ser posterior a la hora de salida en puerta (${asistencia.horaSalida.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
+          error: `La hora de finalización no puede ser posterior a la hora de salida en puerta (${horaSalida.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
         },
         { status: 400 }
       );

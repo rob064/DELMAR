@@ -168,10 +168,19 @@ export async function POST(request: NextRequest) {
       }
 
       // 3. Validar que hora inicio esté dentro del rango de entrada/salida
-      const horaEntrada = asistencia.horaEntrada;
-      const horaSalida = asistencia.horaSalida;
+      // Normalizar fechas a minutos (eliminar segundos y milisegundos)
+      const horaEntrada = new Date(asistencia.horaEntrada);
+      horaEntrada.setSeconds(0, 0);
+      
+      const horaSalida = asistencia.horaSalida ? new Date(asistencia.horaSalida) : null;
+      if (horaSalida) {
+        horaSalida.setSeconds(0, 0);
+      }
 
-      if (horaInicioFinal < horaEntrada) {
+      const horaInicioNormalizada = new Date(horaInicioFinal);
+      horaInicioNormalizada.setSeconds(0, 0);
+
+      if (horaInicioNormalizada < horaEntrada) {
         return NextResponse.json(
           { 
             error: `La hora de inicio no puede ser anterior a la hora de entrada en puerta (${horaEntrada.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
@@ -180,7 +189,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (horaSalida && horaInicioFinal > horaSalida) {
+      if (horaSalida && horaInicioNormalizada > horaSalida) {
         return NextResponse.json(
           { 
             error: `La hora de inicio no puede ser posterior a la hora de salida en puerta (${horaSalida.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
@@ -192,9 +201,11 @@ export async function POST(request: NextRequest) {
       // 4. Si se proporciona hora fin, validar rangos y solapamientos
       if (horaFin) {
         const horaFinDate = new Date(horaFin);
+        const horaFinNormalizada = new Date(horaFinDate);
+        horaFinNormalizada.setSeconds(0, 0);
         
         // Validar que hora fin sea posterior a hora inicio
-        if (horaFinDate <= horaInicioFinal) {
+        if (horaFinNormalizada <= horaInicioNormalizada) {
           return NextResponse.json(
             { error: "La hora de finalización debe ser posterior a la hora de inicio" },
             { status: 400 }
@@ -202,7 +213,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Validar que hora fin esté dentro del rango de entrada/salida
-        if (horaSalida && horaFinDate > horaSalida) {
+        if (horaSalida && horaFinNormalizada > horaSalida) {
           return NextResponse.json(
             { 
               error: `La hora de finalización no puede ser posterior a la hora de salida en puerta (${horaSalida.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
