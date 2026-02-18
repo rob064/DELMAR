@@ -63,6 +63,16 @@ export default function ProduccionPage() {
   const [cantidadProducida, setCantidadProducida] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // Campos para actividades POR_HORA
+  const [horaInicio, setHoraInicio] = useState("");
+  const [horaFin, setHoraFin] = useState("");
+  const [mostrarHoraFin, setMostrarHoraFin] = useState(false);
+  
+  // Modal para cerrar actividad
+  const [modalCerrarActividad, setModalCerrarActividad] = useState(false);
+  const [actividadACerrar, setActividadACerrar] = useState<Produccion | null>(null);
+  const [horaFinCierre, setHoraFinCierre] = useState("");
 
   // Modal nueva actividad
   const [showNuevaActividad, setShowNuevaActividad] = useState(false);
@@ -91,6 +101,37 @@ export default function ProduccionPage() {
       setActividadesActivas([]);
     }
   }, [selectedTrabajador, fechaRegistro]);
+
+  // Actualizar hora inicio cuando cambie asistencia o actividad
+  useEffect(() => {
+    if (asistenciaDelDia?.horaEntrada && actividadSeleccionada?.tipoPago === "POR_HORA") {
+      // Defaultear hora inicio a hora de entrada en formato HH:MM
+      const horaEntrada = new Date(asistenciaDelDia.horaEntrada);
+      const horaStr = horaEntrada.toTimeString().substring(0, 5);
+      setHoraInicio(horaStr);
+    } else {
+      setHoraInicio("");
+    }
+    setHoraFin("");
+    setMostrarHoraFin(false);
+  }, [asistenciaDelDia, selectedActividad]);
+
+  // Verificar si han pasado más de 1 hora desde hora inicio
+  useEffect(() => {
+    if (horaInicio && actividadSeleccionada?.tipoPago === "POR_HORA") {
+      const ahora = new Date();
+      const [horas, minutos] = horaInicio.split(':').map(Number);
+      const horaInicioDate = new Date();
+      horaInicioDate.setHours(horas, minutos, 0, 0);
+      
+      const diffMs = ahora.getTime() - horaInicioDate.getTime();
+      const diffHoras = diffMs / (1000 * 60 * 60);
+      
+      setMostrarHoraFin(diffHoras >= 1);
+    } else {
+      setMostrarHoraFin(false);
+    }
+  }, [horaInicio, actividadSeleccionada]);
 
   const obtenerAsistencia = async () => {
     try {
@@ -148,6 +189,55 @@ export default function ProduccionPage() {
     }
   };
 
+  const abrirModalCerrar = (produccion: Produccion) => {
+    setActividadACerrar(produccion);
+    // Defaultear hora fin a hora actual
+    const ahora = new Date();
+    const horaStr = ahora.toTimeString().substring(0, 5);
+    setHoraFinCierre(horaStr);
+    setModalCerrarActividad(true);
+  };
+
+  const cerrarActividadConHora = async () => {
+    if (!actividadACerrar || !horaFinCierre) {
+      alert("Debe especificar la hora de finalización");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Construir horaFin completa con fecha
+      const fechaProd = new Date(actividadACerrar.fecha);
+      const [horasFin, minutosFin] = horaFinCierre.split(':').map(Number);
+      const horaFinDate = new Date(fechaProd.getFullYear(), fechaProd.getMonth(), fechaProd.getDate(), horasFin, minutosFin, 0, 0);
+      
+      const res = await fetch(`/api/produccion/${actividadACerrar.id}/cerrar`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          horaFin: horaFinDate.toISOString(),
+        }),
+      });
+
+      if (res.ok) {
+        alert("Actividad cerrada exitosamente");
+        setModalCerrarActividad(false);
+        setActividadACerrar(null);
+        setHoraFinCierre("");
+        cargarActividadesActivas();
+        cargarDatos();
+      } else {
+        const error = await res.json();
+        alert(error.error || "Error al cerrar actividad");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al cerrar actividad");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const cargarDatos = async () => {
     try {
       const [trabajadoresRes, actividadesRes, produccionRes] = await Promise.all([
@@ -189,6 +279,10 @@ export default function ProduccionPage() {
         alert("El trabajador no tiene asistencia registrada para esta fecha");
         return;
       }
+      if (!horaInicio) {
+        alert("Por favor especifique la hora de inicio");
+        return;
+      }
     }
 
     // Validación para POR_PRODUCCION: debe tener asistencia registrada con al menos entrada
@@ -205,6 +299,23 @@ export default function ProduccionPage() {
 
     setLoading(true);
     try {
+      // Construir horaInicio e horaFin completas con fecha
+      let horaInicioISO = null;
+      let horaFinISO = null;
+      
+      if (actividad.tipoPago === "POR_HORA" && horaInicio) {
+        const [year, month, day] = fechaRegistro.split('-').map(Number);
+        const [horas, minutos] = horaInicio.split(':').map(Number);
+        const horaInicioDate = new Date(year, month - 1, day, horas, minutos, 0, 0);
+        horaInicioISO = horaInicioDate.toISOString();
+        
+        if (horaFin) {
+          const [horasFin, minutosFin] = horaFin.split(':').map(Number);
+          const horaFinDate = new Date(year, month - 1, day, horasFin, minutosFin, 0, 0);
+          horaFinISO = horaFinDate.toISOString();
+        }
+      }
+
       const res = await fetch("/api/produccion", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -212,8 +323,8 @@ export default function ProduccionPage() {
           trabajadorId: selectedTrabajador,
           actividadId: selectedActividad,
           fecha: fechaRegistro,
-          horaInicio: actividad.tipoPago === "POR_HORA" ? null : undefined, // null para que el backend lo maneje
-          horaFin: null,
+          horaInicio: horaInicioISO,
+          horaFin: horaFinISO,
           horasTrabajadas: null,
           cantidadProducida: cantidadProducida || null,
           observaciones,
@@ -227,6 +338,8 @@ export default function ProduccionPage() {
         setAsistenciaDelDia(null);
         setCantidadProducida("");
         setObservaciones("");
+        setHoraInicio("");
+        setHoraFin("");
         setActividadesActivas([]);
         cargarDatos();
       } else {
@@ -430,19 +543,53 @@ export default function ProduccionPage() {
               )}
 
               {actividadSeleccionada?.tipoPago === "POR_HORA" && (
-                <div className="rounded-lg border p-3 bg-green-50 dark:bg-green-950/30 space-y-2">
-                  <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                    ℹ️ Actividad Por Horas
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Se iniciará automáticamente y se debe cerrar manualmente cuando termine la actividad.
-                  </p>
-                  {actividadSeleccionada.tarifaPorHora && (
-                    <p className="text-sm text-muted-foreground">
-                      Tarifa: {formatCurrency(actividadSeleccionada.tarifaPorHora)}/hora
-                    </p>
-                  )}
-                </div>
+                <>
+                  <div className="rounded-lg border p-3 bg-green-50 dark:bg-green-950/30 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                        ℹ️ Actividad Por Horas
+                      </p>
+                    </div>
+                    {actividadSeleccionada.tarifaPorHora && (
+                      <p className="text-xs text-muted-foreground">
+                        Tarifa: {formatCurrency(actividadSeleccionada.tarifaPorHora)}/hora
+                      </p>
+                    )}
+                    
+                    <div className="space-y-2">
+                      <Label>Hora de Inicio *</Label>
+                      <Input
+                        type="time"
+                        value={horaInicio}
+                        onChange={(e) => setHoraInicio(e.target.value)}
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Por defecto se toma la hora de entrada en puerta
+                      </p>
+                    </div>
+
+                    {mostrarHoraFin && (
+                      <div className="space-y-2">
+                        <Label>Hora de Finalización (opcional)</Label>
+                        <Input
+                          type="time"
+                          value={horaFin}
+                          onChange={(e) => setHoraFin(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Si no se especifica, la actividad quedará abierta para cerrarla después
+                        </p>
+                      </div>
+                    )}
+
+                    {!mostrarHoraFin && horaInicio && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        ⏱️ La actividad se registrará abierta. Podrá cerrarla cuando transcurra más de 1 hora.
+                      </p>
+                    )}
+                  </div>
+                </>
               )}
 
               {actividadSeleccionada?.tipoPago === "POR_PRODUCCION" && (
@@ -520,8 +667,11 @@ export default function ProduccionPage() {
                       <div 
                         key={prod.id} 
                         className={`rounded-lg border p-3 space-y-2 ${
-                          esActiva ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/30' : ''
+                          esActiva 
+                            ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/30 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors' 
+                            : ''
                         }`}
+                        onClick={() => esActiva && abrirModalCerrar(prod)}
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
@@ -540,22 +690,16 @@ export default function ProduccionPage() {
                               {prod.actividad.nombre}
                               {prod.actividad.tipoPago === "POR_HORA" ? " (Por Hora)" : " (Por Producción)"}
                             </p>
+                            {esActiva && (
+                              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                                👆 Click para cerrar con hora personalizada
+                              </p>
+                            )}
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-primary">
                               {formatCurrency(prod.montoGenerado)}
                             </p>
-                            {esActiva && (
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => cerrarActividad(prod.id)}
-                                disabled={loading}
-                                className="mt-1"
-                              >
-                                Cerrar
-                              </Button>
-                            )}
                           </div>
                         </div>
                         
@@ -678,6 +822,102 @@ export default function ProduccionPage() {
                   </Button>
                   <Button
                     onClick={() => setShowNuevaActividad(false)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Modal Cerrar Actividad */}
+        {modalCerrarActividad && actividadACerrar && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle>Cerrar Actividad</CardTitle>
+                <CardDescription>
+                  {actividadACerrar.actividad.nombre} - {actividadACerrar.trabajador.nombres} {actividadACerrar.trabajador.apellidos}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-lg border p-3 bg-blue-50 dark:bg-blue-950/30 space-y-2">
+                  <p className="text-sm font-medium">Información de la Actividad:</p>
+                  <div className="text-sm space-y-1">
+                    {actividadACerrar.horaInicio && (
+                      <p>
+                        <span className="text-muted-foreground">Hora Inicio:</span>{" "}
+                        <span className="font-medium">
+                          {new Date(actividadACerrar.horaInicio).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </p>
+                    )}
+                    {actividadACerrar.actividad.valor && (
+                      <p>
+                        <span className="text-muted-foreground">Tarifa:</span>{" "}
+                        <span className="font-medium">
+                          {formatCurrency(actividadACerrar.actividad.valor)}/hora
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Hora de Finalización *</Label>
+                  <Input
+                    type="time"
+                    value={horaFinCierre}
+                    onChange={(e) => setHoraFinCierre(e.target.value)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Debe estar dentro del rango de entrada/salida en puerta
+                  </p>
+                </div>
+
+                {horaFinCierre && actividadACerrar.horaInicio && actividadACerrar.actividad.valor && (() => {
+                  const horaInicio = new Date(actividadACerrar.horaInicio);
+                  const fechaProd = new Date(actividadACerrar.fecha);
+                  const [horasFin, minutosFin] = horaFinCierre.split(':').map(Number);
+                  const horaFinDate = new Date(fechaProd.getFullYear(), fechaProd.getMonth(), fechaProd.getDate(), horasFin, minutosFin, 0, 0);
+                  
+                  const diffMs = horaFinDate.getTime() - horaInicio.getTime();
+                  const horasTrabajadas = diffMs / (1000 * 60 * 60);
+                  const monto = horasTrabajadas * parseFloat(actividadACerrar.actividad.valor);
+
+                  return (
+                    <div className="rounded-lg border p-3 bg-green-50 dark:bg-green-950/30">
+                      <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">
+                        💰 Cálculo Estimado:
+                      </p>
+                      <div className="text-sm space-y-1">
+                        <p>
+                          <span className="text-muted-foreground">Horas trabajadas:</span>{" "}
+                          <span className="font-medium">{horasTrabajadas.toFixed(2)} horas</span>
+                        </p>
+                        <p>
+                          <span className="text-muted-foreground">Monto generado:</span>{" "}
+                          <span className="font-bold text-primary">{formatCurrency(monto.toString())}</span>
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div className="flex gap-2">
+                  <Button onClick={cerrarActividadConHora} disabled={loading} className="flex-1">
+                    Cerrar Actividad
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setModalCerrarActividad(false);
+                      setActividadACerrar(null);
+                      setHoraFinCierre("");
+                    }}
                     variant="outline"
                     className="flex-1"
                   >

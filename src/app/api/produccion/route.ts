@@ -113,6 +113,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verificar que el trabajador tenga asistencia registrada ese día
+    const asistencia = await prisma.asistencia.findUnique({
+      where: {
+        trabajadorId_fecha: {
+          trabajadorId,
+          fecha: fechaProduccion,
+        },
+      },
+    });
+
+    if (!asistencia || !asistencia.horaEntrada) {
+      return NextResponse.json(
+        { error: "El trabajador no tiene hora de entrada registrada para esta fecha. Debe registrar la asistencia primero en el módulo PUERTA." },
+        { status: 400 }
+      );
+    }
+
     // VALIDACIONES SEGÚN TIPO DE ACTIVIDAD
 
     if (actividad.tipoPago === "POR_HORA") {
@@ -140,58 +157,61 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 2. Determinar hora de inicio
-      let horaInicioFinal: Date | null = null;
+      // 2. Determinar y validar hora de inicio
+      let horaInicioFinal: Date;
 
       if (horaInicio) {
         horaInicioFinal = new Date(horaInicio);
       } else {
-        // Verificar si hay producción previa ese día
-        const produccionPrevia = await prisma.produccionDiaria.findFirst({
-          where: {
-            trabajadorId,
-            fecha: fechaProduccion,
-          },
-        });
-
-        if (!produccionPrevia) {
-          // No hay producción previa, usar hora de entrada de asistencia
-          const asistencia = await prisma.asistencia.findUnique({
-            where: {
-              trabajadorId_fecha: {
-                trabajadorId,
-                fecha: fechaProduccion,
-              },
-            },
-          });
-
-          if (asistencia?.horaEntrada) {
-            horaInicioFinal = asistencia.horaEntrada;
-          } else {
-            return NextResponse.json(
-              { error: "No se encontró hora de entrada para este día. Por favor registre la asistencia primero." },
-              { status: 400 }
-            );
-          }
-        } else {
-          // Hay producción previa, debe especificar hora de inicio
-          return NextResponse.json(
-            { error: "Ya existen actividades registradas hoy. Debe especificar la hora de inicio de esta actividad." },
-            { status: 400 }
-          );
-        }
+        // Por defecto usar hora de entrada de asistencia
+        horaInicioFinal = asistencia.horaEntrada;
       }
 
-      if (!horaInicioFinal) {
+      // 3. Validar que hora inicio esté dentro del rango de entrada/salida
+      const horaEntrada = asistencia.horaEntrada;
+      const horaSalida = asistencia.horaSalida;
+
+      if (horaInicioFinal < horaEntrada) {
         return NextResponse.json(
-          { error: "Debe especificar una hora de inicio para actividades por horas" },
+          { 
+            error: `La hora de inicio no puede ser anterior a la hora de entrada en puerta (${horaEntrada.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
+          },
           { status: 400 }
         );
       }
 
-      // Validar que no se solape con otras actividades por horas del mismo día
+      if (horaSalida && horaInicioFinal > horaSalida) {
+        return NextResponse.json(
+          { 
+            error: `La hora de inicio no puede ser posterior a la hora de salida en puerta (${horaSalida.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
+          },
+          { status: 400 }
+        );
+      }
+
+      // 4. Si se proporciona hora fin, validar rangos y solapamientos
       if (horaFin) {
         const horaFinDate = new Date(horaFin);
+        
+        // Validar que hora fin sea posterior a hora inicio
+        if (horaFinDate <= horaInicioFinal) {
+          return NextResponse.json(
+            { error: "La hora de finalización debe ser posterior a la hora de inicio" },
+            { status: 400 }
+          );
+        }
+
+        // Validar que hora fin esté dentro del rango de entrada/salida
+        if (horaSalida && horaFinDate > horaSalida) {
+          return NextResponse.json(
+            { 
+              error: `La hora de finalización no puede ser posterior a la hora de salida en puerta (${horaSalida.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
+            },
+            { status: 400 }
+          );
+        }
+
+        // Validar que no se solape con otras actividades por horas del mismo día
         const solapamiento = await prisma.produccionDiaria.findFirst({
           where: {
             trabajadorId,
@@ -233,17 +253,18 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Calcular horas trabajadas si tiene hora fin
+      // 5. Calcular horas trabajadas y monto si tiene hora fin
       let horasTrabajadas = null;
+      let montoGenerado = new Decimal(0);
+      
       if (horaFin) {
         const horaFinDate = new Date(horaFin);
         const diffMs = horaFinDate.getTime() - horaInicioFinal.getTime();
         horasTrabajadas = new Decimal(diffMs / (1000 * 60 * 60)); // Convertir a horas
-      }
-
-      let montoGenerado = new Decimal(0);
-      if (horasTrabajadas && actividad.valor) {
-        montoGenerado = horasTrabajadas.mul(actividad.valor);
+        
+        if (actividad.valor) {
+          montoGenerado = horasTrabajadas.mul(actividad.valor);
+        }
       }
 
       const produccion = await prisma.produccionDiaria.create({

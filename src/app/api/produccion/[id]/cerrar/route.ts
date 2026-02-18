@@ -68,6 +68,84 @@ export async function PATCH(
       );
     }
 
+    // Obtener asistencia del día para validar rangos
+    const asistencia = await prisma.asistencia.findUnique({
+      where: {
+        trabajadorId_fecha: {
+          trabajadorId: produccion.trabajadorId,
+          fecha: produccion.fecha,
+        },
+      },
+    });
+
+    if (!asistencia || !asistencia.horaEntrada) {
+      return NextResponse.json(
+        { error: "No se encontró asistencia registrada para este día" },
+        { status: 400 }
+      );
+    }
+
+    // Validar que hora fin esté dentro del rango de entrada/salida
+    if (horaFinDate < asistencia.horaEntrada) {
+      return NextResponse.json(
+        { 
+          error: `La hora de finalización no puede ser anterior a la hora de entrada en puerta (${asistencia.horaEntrada.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
+        },
+        { status: 400 }
+      );
+    }
+
+    if (asistencia.horaSalida && horaFinDate > asistencia.horaSalida) {
+      return NextResponse.json(
+        { 
+          error: `La hora de finalización no puede ser posterior a la hora de salida en puerta (${asistencia.horaSalida.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validar que no se solape con otras actividades por horas del mismo día
+    const solapamiento = await prisma.produccionDiaria.findFirst({
+      where: {
+        trabajadorId: produccion.trabajadorId,
+        fecha: produccion.fecha,
+        id: { not: id }, // Excluir la actividad actual
+        actividad: {
+          tipoPago: "POR_HORA",
+        },
+        OR: [
+          {
+            AND: [
+              { horaInicio: { lte: produccion.horaInicio } },
+              { horaFin: { gte: produccion.horaInicio } },
+            ],
+          },
+          {
+            AND: [
+              { horaInicio: { lte: horaFinDate } },
+              { horaFin: { gte: horaFinDate } },
+            ],
+          },
+          {
+            AND: [
+              { horaInicio: { gte: produccion.horaInicio } },
+              { horaFin: { lte: horaFinDate } },
+            ],
+          },
+        ],
+      },
+      include: {
+        actividad: true,
+      },
+    });
+
+    if (solapamiento) {
+      return NextResponse.json(
+        { error: `Esta actividad se solaparía con: ${solapamiento.actividad.nombre}` },
+        { status: 400 }
+      );
+    }
+
     // Calcular horas trabajadas
     const diffMs = horaFinDate.getTime() - produccion.horaInicio.getTime();
     const horasTrabajadas = new Decimal(diffMs / (1000 * 60 * 60));
