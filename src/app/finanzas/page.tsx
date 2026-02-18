@@ -9,18 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDate, obtenerFechaSemana } from "@/lib/utils";
-import { DollarSign, Plus, TrendingDown, TrendingUp, X } from "lucide-react";
-import Decimal from "decimal.js";
-
-interface Trabajador {
-  id: string;
-  nombres: string;
-  apellidos: string;
-  dni: string;
-}
-
-interface Transaccion {
-  id: string;
+import { DollarSign, Plus, TrendingDown, TrendingUp, X, AlertCircle, CheckCircle2, Clock, Receipt } from "lucide-react";
   tipo: string;
   monto: string;
   concepto: string;
@@ -490,54 +479,80 @@ export default function FinanzasPage() {
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Módulo Financiero</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-700 bg-clip-text text-transparent">
+              Módulo Financiero
+            </h1>
             <p className="text-muted-foreground">Gestión de adelantos, multas y nómina</p>
           </div>
-          <Button onClick={() => setShowNuevaTransaccion(true)}>
-            <Plus className="mr-2 h-4 w-4" />
+          <Button onClick={() => setShowNuevaTransaccion(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
             Nueva Transacción
           </Button>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
-          <Card>
+          <Card className="border-l-4 border-warning bg-gradient-to-br from-warning/5 to-orange-50/50 dark:from-warning/5 dark:to-orange-950/20">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Total Adelantos</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Total Adelantos</CardTitle>
+                <div className="rounded-lg bg-warning/10 p-2.5">
+                  <TrendingDown className="h-5 w-5 text-warning" />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
+              <div className="text-3xl font-bold text-warning">
                 {formatCurrency(
                   transacciones
                     .filter((t) => t.tipo === "ADELANTO" && !t.descontado)
                     .reduce((sum, t) => sum + parseFloat(t.monto), 0)
                 )}
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Pendientes de descontar
+              </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-destructive bg-gradient-to-br from-destructive/5 to-red-50/50 dark:from-destructive/5 dark:to-red-950/20">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Total Multas</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Total Multas</CardTitle>
+                <div className="rounded-lg bg-destructive/10 p-2.5">
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">
+              <div className="text-3xl font-bold text-destructive">
                 {formatCurrency(
                   transacciones
                     .filter((t) => t.tipo === "MULTA" && !t.descontado)
                     .reduce((sum, t) => sum + parseFloat(t.monto), 0)
                 )}
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Pendientes de descontar
+              </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-primary bg-gradient-to-br from-primary/5 to-blue-50/50 dark:from-primary/5 dark:to-blue-950/20">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Pagos Pendientes</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Pagos Pendientes</CardTitle>
+                <div className="rounded-lg bg-primary/10 p-2.5">
+                  <Receipt className="h-5 w-5 text-primary" />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-3xl font-bold text-primary">
                 {pagos.filter((p) => !p.pagado).length}
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Nóminas por pagar
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -609,29 +624,57 @@ export default function FinanzasPage() {
                   </p>
                 ) : (
                   transacciones.slice(0, 20).map((trans) => (
-                    <div key={trans.id} className="flex items-start justify-between rounded-lg border p-3">
-                      <div className="flex gap-3">
-                        {trans.tipo === "ADELANTO" ? (
-                          <TrendingDown className="h-5 w-5 text-orange-600 mt-0.5" />
-                        ) : trans.tipo === "MULTA" ? (
-                          <TrendingDown className="h-5 w-5 text-red-600 mt-0.5" />
-                        ) : (
-                          <TrendingUp className="h-5 w-5 text-green-600 mt-0.5" />
-                        )}
-                        <div>
-                          <p className="font-medium">
-                            {trans.trabajador.nombres} {trans.trabajador.apellidos}
-                          </p>
-                          <p className="text-sm text-muted-foreground">{trans.concepto}</p>
-                          <p className="text-xs text-muted-foreground">
+                    <div key={trans.id} className="flex items-start justify-between rounded-lg border p-3 hover:bg-accent/50 transition-colors">
+                      <div className="flex gap-3 flex-1">
+                        <div className={`rounded-lg p-2 ${
+                          trans.tipo === "ADELANTO" ? "bg-warning/10" :
+                          trans.tipo === "MULTA" ? "bg-destructive/10" : "bg-success/10"
+                        }`}>
+                          {trans.tipo === "ADELANTO" ? (
+                            <TrendingDown className="h-5 w-5 text-warning" />
+                          ) : trans.tipo === "MULTA" ? (
+                            <AlertCircle className="h-5 w-5 text-destructive" />
+                          ) : (
+                            <TrendingUp className="h-5 w-5 text-success" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium">
+                              {trans.trabajador.nombres} {trans.trabajador.apellidos}
+                            </p>
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              trans.tipo === "ADELANTO" ? "bg-warning/10 text-warning border border-warning/20" :
+                              trans.tipo === "MULTA" ? "bg-destructive/10 text-destructive border border-destructive/20" :
+                              "bg-success/10 text-success border border-success/20"
+                            }`}>
+                              {trans.tipo}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">{trans.concepto}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                            <Clock className="h-3 w-3" />
                             {formatDate(new Date(trans.fecha))}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold">{formatCurrency(trans.monto)}</p>
-                        {trans.descontado && (
-                          <p className="text-xs text-green-600">Descontado</p>
+                        <p className={`text-lg font-bold ${
+                          trans.tipo === "ADELANTO" ? "text-warning" :
+                          trans.tipo === "MULTA" ? "text-destructive" : "text-success"
+                        }`}>
+                          {formatCurrency(trans.monto)}
+                        </p>
+                        {trans.descontado ? (
+                          <div className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success mt-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Descontado
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning mt-1">
+                            <Clock className="h-3 w-3" />
+                            Pendiente
+                          </div>
                         )}
                       </div>
                     </div>
@@ -654,61 +697,75 @@ export default function FinanzasPage() {
                   </p>
                 ) : (
                   pagos.map((pago) => (
-                    <div key={pago.id} className="rounded-lg border p-3 space-y-2">
+                    <div key={pago.id} className="rounded-lg border p-3 space-y-2 hover:bg-accent/50 transition-colors">
                       <div className="flex justify-between items-start">
-                        <div>
+                        <div className="flex-1">
                           <p className="font-medium">
                             {pago.trabajador.nombres} {pago.trabajador.apellidos}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDate(new Date(pago.fechaInicio))} -{" "}
-                            {formatDate(new Date(pago.fechaFin))}
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                            <Clock className="h-3 w-3" />
+                            {formatDate(new Date(pago.fechaInicio))} - {formatDate(new Date(pago.fechaFin))}
                           </p>
                         </div>
                         {pago.pagado ? (
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                          <div className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success border border-success/20">
+                            <CheckCircle2 className="h-3 w-3" />
                             Pagado
-                          </span>
+                          </div>
                         ) : (
-                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                          <div className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning border border-warning/20">
+                            <Clock className="h-3 w-3" />
                             Pendiente
-                          </span>
+                          </div>
                         )}
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Base: </span>
-                          <span>{formatCurrency(pago.montoBase)}</span>
+                        <div className="flex items-center gap-1.5">
+                          <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-muted-foreground">Base:</span>
+                          <span className="font-medium">{formatCurrency(pago.montoBase)}</span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Adelantos: </span>
-                          <span className="text-orange-600">-{formatCurrency(pago.adelantos)}</span>
+                        <div className="flex items-center gap-1.5">
+                          <TrendingDown className="h-3.5 w-3.5 text-warning" />
+                          <span className="text-muted-foreground">Adelantos:</span>
+                          <span className="text-warning font-medium">-{formatCurrency(pago.adelantos)}</span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Multas: </span>
-                          <span className="text-red-600">-{formatCurrency(pago.adelantos)}</span>
+                        <div className="flex items-center gap-1.5">
+                          <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+                          <span className="text-muted-foreground">Multas:</span>
+                          <span className="text-destructive font-medium">-{formatCurrency(pago.multas)}</span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Neto: </span>
-                          <span className="font-bold">{formatCurrency(pago.totalNeto)}</span>
+                        <div className="flex items-center gap-1.5">
+                          <Receipt className="h-3.5 w-3.5 text-primary" />
+                          <span className="text-muted-foreground">Neto:</span>
+                          <span className="font-bold text-primary">{formatCurrency(pago.totalNeto)}</span>
                         </div>
-                        <div className="col-span-2 border-t pt-2 mt-1">
-                          <span className="text-muted-foreground">Pagado: </span>
-                          <span className="text-green-600 font-medium">{formatCurrency(pago.montoPagado)}</span>
+                        <div className="col-span-2 border-t pt-2 mt-1 flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                          <span className="text-muted-foreground">Pagado:</span>
+                          <span className="text-success font-medium">{formatCurrency(pago.montoPagado)}</span>
                         </div>
-                        <div className="col-span-2">
-                          <span className="text-muted-foreground">Saldo: </span>
-                          <span className="text-orange-600 font-medium">{formatCurrency(pago.saldoPendiente)}</span>
+                        <div className="col-span-2 flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5 text-warning" />
+                          <span className="text-muted-foreground">Saldo:</span>
+                          <span className="text-warning font-medium">{formatCurrency(pago.saldoPendiente)}</span>
                         </div>
                       </div>
                       {pago.abonos && pago.abonos.length > 0 && (
-                        <div className="text-xs border-t pt-2">
-                          <p className="font-medium mb-1">Abonos registrados:</p>
-                          <div className="space-y-1">
+                        <div className="text-xs border-t pt-2 space-y-1.5">
+                          <p className="font-medium text-muted-foreground flex items-center gap-1">
+                            <Receipt className="h-3 w-3" />
+                            Abonos registrados:
+                          </p>
+                          <div className="space-y-1.5 pl-4">
                             {pago.abonos.map((abono) => (
-                              <div key={abono.id} className="flex justify-between text-muted-foreground">
-                                <span>{formatDate(new Date(abono.fecha))} - {abono.metodoPago}</span>
-                                <span>{formatCurrency(abono.monto)}</span>
+                              <div key={abono.id} className="flex justify-between items-center text-muted-foreground rounded bg-accent/30 px-2 py-1">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatDate(new Date(abono.fecha))} - {abono.metodoPago}
+                                </span>
+                                <span className="font-medium text-success">{formatCurrency(abono.monto)}</span>
                               </div>
                             ))}
                           </div>
@@ -719,9 +776,9 @@ export default function FinanzasPage() {
                           size="sm"
                           onClick={() => abrirModalAbono(pago)}
                           disabled={loading}
-                          className="w-full mt-2"
+                          className="w-full mt-2 gap-2"
                         >
-                          <Plus className="mr-2 h-4 w-4" />
+                          <Plus className="h-4 w-4" />
                           Registrar Pago
                         </Button>
                       )}
@@ -737,12 +794,27 @@ export default function FinanzasPage() {
         {showNuevaTransaccion && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle>Nueva Transacción</CardTitle>
+              <CardHeader className="border-b">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl bg-gradient-to-r from-primary to-blue-700 bg-clip-text text-transparent">
+                    Nueva Transacción
+                  </CardTitle>
+                  <Button
+                    onClick={() => setShowNuevaTransaccion(false)}
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 pt-6">
                 <div className="space-y-2">
-                  <Label>Trabajador</Label>
+                  <Label className="flex items-center gap-1.5">
+                    <DollarSign className="h-4 w-4" />
+                    Trabajador
+                  </Label>
                   <select
                     className="w-full rounded-md border border-input bg-background px-3 py-2"
                     value={nuevaTransaccion.trabajadorId}
@@ -760,7 +832,10 @@ export default function FinanzasPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Tipo</Label>
+                  <Label className="flex items-center gap-1.5">
+                    <Receipt className="h-4 w-4" />
+                    Tipo
+                  </Label>
                   <select
                     className="w-full rounded-md border border-input bg-background px-3 py-2"
                     value={nuevaTransaccion.tipo}
@@ -768,17 +843,21 @@ export default function FinanzasPage() {
                       setNuevaTransaccion({ ...nuevaTransaccion, tipo: e.target.value })
                     }
                   >
-                    <option value="ADELANTO">Adelanto</option>
-                    <option value="MULTA">Multa</option>
-                    <option value="AJUSTE">Ajuste</option>
+                    <option value="ADELANTO">💰 Adelanto</option>
+                    <option value="MULTA">⚠️ Multa</option>
+                    <option value="AJUSTE">✅ Bonificación</option>
                   </select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Monto</Label>
+                  <Label className="flex items-center gap-1.5">
+                    <DollarSign className="h-4 w-4" />
+                    Monto
+                  </Label>
                   <Input
                     type="number"
                     step="0.01"
+                    placeholder="0.00"
                     value={nuevaTransaccion.monto}
                     onChange={(e) =>
                       setNuevaTransaccion({ ...nuevaTransaccion, monto: e.target.value })
@@ -787,8 +866,12 @@ export default function FinanzasPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Concepto</Label>
+                  <Label className="flex items-center gap-1.5">
+                    <Receipt className="h-4 w-4" />
+                    Concepto
+                  </Label>
                   <Input
+                    placeholder="Descripción de la transacción"
                     value={nuevaTransaccion.concepto}
                     onChange={(e) =>
                       setNuevaTransaccion({ ...nuevaTransaccion, concepto: e.target.value })
@@ -797,8 +880,12 @@ export default function FinanzasPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Observaciones</Label>
+                  <Label className="flex items-center gap-1.5">
+                    <AlertCircle className="h-4 w-4" />
+                    Observaciones
+                  </Label>
                   <Textarea
+                    placeholder="Información adicional (opcional)"
                     value={nuevaTransaccion.observaciones}
                     onChange={(e) =>
                       setNuevaTransaccion({ ...nuevaTransaccion, observaciones: e.target.value })
@@ -806,15 +893,17 @@ export default function FinanzasPage() {
                   />
                 </div>
 
-                <div className="flex gap-2">
-                  <Button onClick={crearTransaccion} disabled={loading} className="flex-1">
+                <div className="flex gap-2 pt-4">
+                  <Button onClick={crearTransaccion} disabled={loading} className="flex-1 gap-2">
+                    <CheckCircle2 className="h-4 w-4" />
                     Registrar
                   </Button>
                   <Button
                     onClick={() => setShowNuevaTransaccion(false)}
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 gap-2"
                   >
+                    <X className="h-4 w-4" />
                     Cancelar
                   </Button>
                 </div>
@@ -827,30 +916,59 @@ export default function FinanzasPage() {
         {showModalAbono && pagoSeleccionado && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle>Registrar Pago</CardTitle>
-                <CardDescription>
-                  {pagoSeleccionado.trabajador.nombres} {pagoSeleccionado.trabajador.apellidos}
-                </CardDescription>
+              <CardHeader className="border-b">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-xl bg-gradient-to-r from-primary to-blue-700 bg-clip-text text-transparent">
+                      Registrar Pago
+                    </CardTitle>
+                    <CardDescription className="mt-1">
+                      {pagoSeleccionado.trabajador.nombres} {pagoSeleccionado.trabajador.apellidos}
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setShowModalAbono(false);
+                      setPagoSeleccionado(null);
+                    }}
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-lg border bg-muted/50 p-3 text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Total neto:</span>
-                    <span className="font-medium">{formatCurrency(pagoSeleccionado.totalNeto)}</span>
+              <CardContent className="space-y-4 pt-6">
+                <div className="rounded-lg border bg-gradient-to-br from-primary/5 to-blue-50/50 p-3 text-sm space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <Receipt className="h-3.5 w-3.5" />
+                      Total neto:
+                    </span>
+                    <span className="font-medium text-primary">{formatCurrency(pagoSeleccionado.totalNeto)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Pagado:</span>
-                    <span className="text-green-600">{formatCurrency(pagoSeleccionado.montoPagado)}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Pagado:
+                    </span>
+                    <span className="text-success font-medium">{formatCurrency(pagoSeleccionado.montoPagado)}</span>
                   </div>
-                  <div className="flex justify-between border-t pt-1">
-                    <span className="font-medium">Saldo pendiente:</span>
-                    <span className="font-bold text-orange-600">{formatCurrency(pagoSeleccionado.saldoPendiente)}</span>
+                  <div className="flex justify-between items-center border-t pt-2">
+                    <span className="font-medium flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5" />
+                      Saldo pendiente:
+                    </span>
+                    <span className="font-bold text-warning">{formatCurrency(pagoSeleccionado.saldoPendiente)}</span>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Monto del abono</Label>
+                  <Label className="flex items-center gap-1.5">
+                    <DollarSign className="h-4 w-4" />
+                    Monto del abono
+                  </Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -861,21 +979,27 @@ export default function FinanzasPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Método de pago</Label>
+                  <Label className="flex items-center gap-1.5">
+                    <Receipt className="h-4 w-4" />
+                    Método de pago
+                  </Label>
                   <select
                     className="w-full rounded-md border border-input bg-background px-3 py-2"
                     value={nuevoAbono.metodoPago}
                     onChange={(e) => setNuevoAbono({ ...nuevoAbono, metodoPago: e.target.value })}
                   >
-                    <option value="Efectivo">Efectivo</option>
-                    <option value="Transferencia">Transferencia</option>
-                    <option value="Cheque">Cheque</option>
-                    <option value="Otro">Otro</option>
+                    <option value="Efectivo">💵 Efectivo</option>
+                    <option value="Transferencia">🏦 Transferencia</option>
+                    <option value="Cheque">📝 Cheque</option>
+                    <option value="Otro">💳 Otro</option>
                   </select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Número de referencia (opcional)</Label>
+                  <Label className="flex items-center gap-1.5">
+                    <Receipt className="h-4 w-4" />
+                    Número de referencia (opcional)
+                  </Label>
                   <Input
                     value={nuevoAbono.numeroReferencia}
                     onChange={(e) => setNuevoAbono({ ...nuevoAbono, numeroReferencia: e.target.value })}
@@ -884,16 +1008,21 @@ export default function FinanzasPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Observaciones (opcional)</Label>
+                  <Label className="flex items-center gap-1.5">
+                    <AlertCircle className="h-4 w-4" />
+                    Observaciones (opcional)
+                  </Label>
                   <Textarea
                     value={nuevoAbono.observaciones}
                     onChange={(e) => setNuevoAbono({ ...nuevoAbono, observaciones: e.target.value })}
                     rows={2}
+                    placeholder="Información adicional"
                   />
                 </div>
 
-                <div className="flex gap-2">
-                  <Button onClick={registrarAbono} disabled={loading} className="flex-1">
+                <div className="flex gap-2 pt-4">
+                  <Button onClick={registrarAbono} disabled={loading} className="flex-1 gap-2">
+                    <CheckCircle2 className="h-4 w-4" />
                     Registrar Pago
                   </Button>
                   <Button
@@ -902,8 +1031,9 @@ export default function FinanzasPage() {
                       setPagoSeleccionado(null);
                     }}
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 gap-2"
                   >
+                    <X className="h-4 w-4" />
                     Cancelar
                   </Button>
                 </div>
