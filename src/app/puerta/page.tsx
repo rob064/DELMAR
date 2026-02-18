@@ -15,6 +15,7 @@ interface Trabajador {
   nombres: string;
   apellidos: string;
   dni: string;
+  tipoTrabajador: string;
 }
 
 interface Jornada {
@@ -112,6 +113,7 @@ export default function PuertaPage() {
     }
 
     // Validar que no se registre salida sin entrada
+    let turnoParaEnviar = turnoProgramado;
     if (tipo === "salida") {
       const asistenciaExistente = asistenciasHoy.find(
         (a) => a.trabajadorId === selectedTrabajador
@@ -126,6 +128,9 @@ export default function PuertaPage() {
         alert("Ya existe una salida registrada para este trabajador en esta fecha");
         return;
       }
+      
+      // Al registrar salida, usar el turno de la entrada registrada
+      turnoParaEnviar = asistenciaExistente.turnoProgramado || undefined;
     }
 
     // Validar hora manual si está activada
@@ -143,7 +148,7 @@ export default function PuertaPage() {
           trabajadorId: selectedTrabajador,
           tipo,
           fecha: fechaSeleccionada,
-          turnoProgramado: tipo === "entrada" ? turnoProgramado : undefined,
+          turnoProgramado: tipo === "entrada" ? turnoProgramado : turnoParaEnviar,
           observaciones,
           horaPersonalizada: usarHoraManual ? horaManual : undefined,
         }),
@@ -343,32 +348,63 @@ export default function PuertaPage() {
                 </div>
               )}
 
-              {selectedTrabajador && (
-                <div className="space-y-2">
-                  <Label htmlFor="turno">
-                    {fechaSeleccionada === getLocalDateString()
-                      ? "¿Qué jornada trabajará hoy?"
-                      : `¿Qué jornada trabajó el ${parseDateString(fechaSeleccionada).toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}?`}
-                  </Label>
-                  <select
-                    id="turno"
-                    value={turnoProgramado}
-                    onChange={(e) => setTurnoProgramado(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2"
-                  >
-                    <option value="">Seleccione una jornada...</option>
-                    {jornadas.map((jornada) => {
-                      const horario = `${jornada.horaInicio}-${jornada.horaFin}`;
-                      const yaPaso = turnoYaPaso(horario);
-                      return (
-                        <option key={jornada.id} value={horario} disabled={yaPaso}>
-                          {jornada.nombre} ({jornada.horaInicio} - {jornada.horaFin}){yaPaso ? " - Jornada finalizada" : ""}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-              )}
+              {selectedTrabajador && (() => {
+                const trabajador = trabajadores.find(t => t.id === selectedTrabajador);
+                const asistencia = asistenciasHoy.find(a => a.trabajadorId === selectedTrabajador);
+                const tieneEntrada = asistencia?.horaEntrada;
+                const esTrabajadorFijo = trabajador?.tipoTrabajador === "FIJO";
+                
+                // Solo mostrar selector si es FIJO y NO tiene entrada registrada
+                if (esTrabajadorFijo && !tieneEntrada) {
+                  return (
+                    <div className="space-y-2">
+                      <Label htmlFor="turno">
+                        {fechaSeleccionada === getLocalDateString()
+                          ? "¿Qué jornada trabajará hoy?"
+                          : `¿Qué jornada trabajó el ${parseDateString(fechaSeleccionada).toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}?`}
+                      </Label>
+                      <select
+                        id="turno"
+                        value={turnoProgramado}
+                        onChange={(e) => setTurnoProgramado(e.target.value)}
+                        className="w-full rounded-md border border-gray-300 px-3 py-2"
+                      >
+                        <option value="">Seleccione una jornada...</option>
+                        {jornadas.map((jornada) => {
+                          const horario = `${jornada.horaInicio}-${jornada.horaFin}`;
+                          const yaPaso = turnoYaPaso(horario);
+                          return (
+                            <option key={jornada.id} value={horario} disabled={yaPaso}>
+                              {jornada.nombre} ({jornada.horaInicio} - {jornada.horaFin}){yaPaso ? " - Jornada finalizada" : ""}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  );
+                }
+                
+                // Si tiene entrada y es FIJO, mostrar la jornada registrada
+                if (esTrabajadorFijo && tieneEntrada && asistencia?.turnoProgramado) {
+                  return (
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                      <p className="text-xs text-blue-600 font-medium mb-1">Jornada registrada:</p>
+                      <p className="text-sm text-blue-800 font-semibold">{asistencia.turnoProgramado}</p>
+                    </div>
+                  );
+                }
+                
+                // Para EVENTUALES, mostrar mensaje informativo
+                if (!esTrabajadorFijo && !tieneEntrada) {
+                  return (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="text-xs text-gray-600">Trabajador EVENTUAL - No requiere jornada</p>
+                    </div>
+                  );
+                }
+                
+                return null;
+              })()}
 
               <div className="space-y-2">
                 <Label htmlFor="observaciones">Observaciones (opcional)</Label>
@@ -459,11 +495,26 @@ export default function PuertaPage() {
                             Salida: {formatTime(new Date(asistencia.horaSalida))}
                           </p>
                         )}
-                        {asistencia.minutosRetraso > 0 && (
-                          <p className="text-xs text-yellow-600">
-                            +{asistencia.minutosRetraso} min
-                          </p>
-                        )}
+                        {asistencia.minutosRetraso > 0 && (() => {
+                          const minutos = asistencia.minutosRetraso;
+                          const horas = Math.floor(minutos / 60);
+                          const mins = minutos % 60;
+                          
+                          let mensaje = "";
+                          if (horas > 0 && mins > 0) {
+                            mensaje = `${horas} ${horas === 1 ? 'hora' : 'horas'} y ${mins} ${mins === 1 ? 'minuto' : 'minutos'} de atraso`;
+                          } else if (horas > 0) {
+                            mensaje = `${horas} ${horas === 1 ? 'hora' : 'horas'} de atraso`;
+                          } else {
+                            mensaje = `${mins} ${mins === 1 ? 'minuto' : 'minutos'} de atraso`;
+                          }
+                          
+                          return (
+                            <p className="text-xs text-yellow-600 font-medium mt-1">
+                              {mensaje}
+                            </p>
+                          );
+                        })()}
                       </div>
                     </div>
                   ))

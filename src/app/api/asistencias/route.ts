@@ -158,15 +158,18 @@ export async function POST(request: NextRequest) {
     });
 
     if (tipo === "entrada") {
-      // Extraer hora de entrada del turno (ej: "08:00-16:00" -> "08:00")
-      const horaEntradaTurno = turnoProgramado?.split("-")[0] || "08:00";
-      
-      // Registrar entrada
-      const minutosRetraso = calcularMinutosRetraso(ahora, horaEntradaTurno);
-      
+      // Para trabajadores EVENTUALES o sin turno, no calcular retraso
+      let minutosRetraso = 0;
       let estado: "PRESENTE" | "TARDE" = "PRESENTE";
-      if (minutosRetraso > 0) {
-        estado = "TARDE";
+      
+      if (turnoProgramado) {
+        // Solo calcular retraso si hay turno programado (trabajadores FIJOS)
+        const horaEntradaTurno = turnoProgramado.split("-")[0];
+        minutosRetraso = calcularMinutosRetraso(ahora, horaEntradaTurno);
+        
+        if (minutosRetraso > 0) {
+          estado = "TARDE";
+        }
       }
 
       if (asistencia) {
