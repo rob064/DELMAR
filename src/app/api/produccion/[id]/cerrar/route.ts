@@ -104,14 +104,14 @@ export async function PATCH(
 
     // Nota: No validamos rango de entrada/salida porque puede haber cruce de medianoche
 
-    // Calcular horas trabajadas
-    const diffMs = horaFinDate.getTime() - produccion.horaInicio.getTime();
-    const horasTrabajadas = new Decimal(diffMs / (1000 * 60 * 60));
+    // Calcular horas trabajadas (usar horaFinDate original para mayor precisión)
+    const diffMsFinal = horaFinDate.getTime() - produccion.horaInicio.getTime();
+    const horasTrabajadasFinal = new Decimal(diffMsFinal / (1000 * 60 * 60));
 
     // Calcular monto generado
     let montoGenerado = new Decimal(0);
     if (produccion.actividad.valor) {
-      montoGenerado = horasTrabajadas.mul(produccion.actividad.valor);
+      montoGenerado = horasTrabajadasFinal.mul(produccion.actividad.valor);
     }
 
     // Actualizar producción
@@ -119,7 +119,7 @@ export async function PATCH(
       where: { id },
       data: {
         horaFin: horaFinDate,
-        horasTrabajadas,
+        horasTrabajadas: horasTrabajadasFinal,
         montoGenerado,
       },
       include: {
