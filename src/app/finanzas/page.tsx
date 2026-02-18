@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Navbar } from "@/components/navbar";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -144,7 +145,7 @@ export default function FinanzasPage() {
 
   const crearTransaccion = async () => {
     if (!nuevaTransaccion.trabajadorId || !nuevaTransaccion.monto || !nuevaTransaccion.concepto) {
-      alert("Por favor complete todos los campos requeridos");
+      toast.warning("Por favor complete todos los campos requeridos");
       return;
     }
 
@@ -157,7 +158,7 @@ export default function FinanzasPage() {
       });
 
       if (res.ok) {
-        alert("Transacción registrada exitosamente");
+        toast.success("Transacción registrada exitosamente");
         setShowNuevaTransaccion(false);
         setNuevaTransaccion({
           trabajadorId: "",
@@ -169,11 +170,11 @@ export default function FinanzasPage() {
         cargarDatos();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al registrar transacción");
+        toast.error(error.error || "Error al registrar transacción");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al registrar transacción");
+      toast.error("Error al registrar transacción");
     } finally {
       setLoading(false);
     }
@@ -181,12 +182,12 @@ export default function FinanzasPage() {
 
   const generarNomina = async () => {
     if (!trabajadorNomina) {
-      alert("Por favor seleccione un trabajador");
+      toast.warning("Por favor seleccione un trabajador");
       return;
     }
 
     if (!fechaInicioNomina || !fechaFinNomina) {
-      alert("Por favor seleccione las fechas");
+      toast.warning("Por favor seleccione las fechas");
       return;
     }
 
@@ -194,14 +195,14 @@ export default function FinanzasPage() {
     if (previewData && previewData.trabajador.tipoTrabajador === "FIJO") {
       const bonificacionNumero = parseFloat(bonificacionEditable);
       if (isNaN(bonificacionNumero) || bonificacionNumero < 0) {
-        alert("La bonificación debe ser un valor válido y no negativo");
+        toast.warning("La bonificación debe ser un valor válido y no negativo");
         return;
       }
 
       // Si la bonificación fue editada manualmente (diferente a la calculada), exigir concepto
       const bonifCalc = parseFloat(previewData.resumen.bonificacionCalculada || "0");
       if (Math.abs(bonificacionNumero - bonifCalc) > 0.01 && !conceptoBonificacion.trim()) {
-        alert("Debe proporcionar un concepto/justificación al editar la bonificación manualmente");
+        toast.warning("Debe proporcionar un concepto/justificación al editar la bonificación manualmente");
         return;
       }
     }
@@ -228,7 +229,7 @@ export default function FinanzasPage() {
       });
 
       if (res.ok) {
-        alert("Nómina generada exitosamente");
+        toast.success("Nómina generada exitosamente");
         setTrabajadorNomina("");
         setShowPreviewNomina(false);
         setPreviewData(null);
@@ -237,11 +238,11 @@ export default function FinanzasPage() {
         cargarDatos();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al generar nómina");
+        toast.error(error.error || "Error al generar nómina");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al generar nómina");
+      toast.error("Error al generar nómina");
     } finally {
       setLoading(false);
     }
@@ -249,7 +250,7 @@ export default function FinanzasPage() {
 
   const verPreviewNomina = async () => {
     if (!trabajadorNomina || !fechaInicioNomina || !fechaFinNomina) {
-      alert("Por favor seleccione un trabajador y las fechas");
+      toast.warning("Por favor seleccione un trabajador y las fechas");
       return;
     }
 
@@ -273,11 +274,11 @@ export default function FinanzasPage() {
         setShowPreviewNomina(true);
       } else {
         const error = await res.json();
-        alert(error.error || "Error al obtener vista previa");
+        toast.error(error.error || "Error al obtener vista previa");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al obtener vista previa");
+      toast.error("Error al obtener vista previa");
     } finally {
       setLoading(false);
     }
@@ -299,7 +300,7 @@ export default function FinanzasPage() {
       });
 
       if (res.ok) {
-        alert("Transacción actualizada exitosamente");
+        toast.success("Transacción actualizada exitosamente");
         setShowEditarTransaccion(false);
         setTransaccionEditar(null);
         cargarDatos();
@@ -308,11 +309,11 @@ export default function FinanzasPage() {
         }
       } else {
         const error = await res.json();
-        alert(error.error || "Error al editar transacción");
+        toast.error(error.error || "Error al editar transacción");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al editar transacción");
+      toast.error("Error al editar transacción");
     } finally {
       setLoading(false);
     }
@@ -328,18 +329,18 @@ export default function FinanzasPage() {
       });
 
       if (res.ok) {
-        alert("Transacción eliminada exitosamente");
+        toast.success("Transacción eliminada exitosamente");
         cargarDatos();
         if (showPreviewNomina) {
           verPreviewNomina(); // Actualizar preview si está abierto
         }
       } else {
         const error = await res.json();
-        alert(error.error || "Error al eliminar transacción");
+        toast.error(error.error || "Error al eliminar transacción");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al eliminar transacción");
+      toast.error("Error al eliminar transacción");
     } finally {
       setLoading(false);
     }
@@ -368,13 +369,13 @@ export default function FinanzasPage() {
 
     const motivoTrim = justificacionForm.motivoJustificacion.trim();
     if (!motivoTrim) {
-      alert("Debe proporcionar un motivo de justificación");
+      toast.warning("Debe proporcionar un motivo de justificación");
       return;
     }
 
     const descuentoFinal = parseFloat(justificacionForm.montoDescuentoFinal);
     if (isNaN(descuentoFinal) || descuentoFinal < 0) {
-      alert("El monto de descuento debe ser válido y no negativo");
+      toast.warning("El monto de descuento debe ser válido y no negativo");
       return;
     }
 
@@ -401,7 +402,7 @@ export default function FinanzasPage() {
       });
 
       if (res.ok) {
-        alert("Justificación guardada exitosamente");
+        toast.success("Justificación guardada exitosamente");
         setShowModalJustificacion(false);
         setAsistenciaJustificar(null);
         setJustificacionForm({ montoDescuentoFinal: "", motivoJustificacion: "" });
@@ -409,11 +410,11 @@ export default function FinanzasPage() {
         await verPreviewNomina();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al guardar justificación");
+        toast.error(error.error || "Error al guardar justificación");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al guardar justificación");
+      toast.error("Error al guardar justificación");
     } finally {
       setLoading(false);
     }
@@ -432,7 +433,7 @@ export default function FinanzasPage() {
 
   const registrarAbono = async () => {
     if (!pagoSeleccionado || !nuevoAbono.monto || !nuevoAbono.metodoPago) {
-      alert("Por favor complete todos los campos requeridos");
+      toast.warning("Por favor complete todos los campos requeridos");
       return;
     }
 
@@ -440,12 +441,12 @@ export default function FinanzasPage() {
     const saldoPendiente = parseFloat(pagoSeleccionado.saldoPendiente);
 
     if (monto <= 0) {
-      alert("El monto debe ser mayor a 0");
+      toast.warning("El monto debe ser mayor a 0");
       return;
     }
 
     if (monto > saldoPendiente) {
-      alert("El monto del abono no puede exceder el saldo pendiente");
+      toast.warning("El monto del abono no puede exceder el saldo pendiente");
       return;
     }
 
@@ -461,7 +462,7 @@ export default function FinanzasPage() {
       });
 
       if (res.ok) {
-        alert("Abono registrado exitosamente");
+        toast.success("Abono registrado exitosamente");
         setShowModalAbono(false);
         setPagoSeleccionado(null);
         setNuevoAbono({
@@ -473,11 +474,11 @@ export default function FinanzasPage() {
         cargarDatos();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al registrar abono");
+        toast.error(error.error || "Error al registrar abono");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al registrar abono");
+      toast.error("Error al registrar abono");
     } finally {
       setLoading(false);
     }

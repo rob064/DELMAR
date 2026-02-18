@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Navbar } from "@/components/navbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -153,7 +154,7 @@ export default function SuperusuarioPage() {
 
   const guardarActividad = async () => {
     if (!actividadForm.codigo || !actividadForm.nombre || !actividadForm.valor) {
-      alert("Complete los campos requeridos");
+      toast.warning("Complete los campos requeridos");
       return;
     }
 
@@ -175,16 +176,16 @@ export default function SuperusuarioPage() {
       });
 
       if (res.ok) {
-        alert(`Actividad ${editingActividad ? "actualizada" : "creada"} exitosamente`);
+        toast.success(`Actividad ${editingActividad ? "actualizada" : "creada"} exitosamente`);
         setShowActividadModal(false);
         cargarDatos();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al guardar actividad");
+        toast.error(error.error || "Error al guardar actividad");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al guardar actividad");
+      toast.error("Error al guardar actividad");
     } finally {
       setLoading(false);
     }
@@ -199,14 +200,14 @@ export default function SuperusuarioPage() {
       });
 
       if (res.ok) {
-        alert("Actividad desactivada exitosamente");
+        toast.success("Actividad desactivada exitosamente");
         cargarDatos();
       } else {
-        alert("Error al desactivar actividad");
+        toast.error("Error al desactivar actividad");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al desactivar actividad");
+      toast.error("Error al desactivar actividad");
     }
   };
 
@@ -256,12 +257,12 @@ export default function SuperusuarioPage() {
 
   const guardarJornada = async () => {
     if (!jornadaForm.nombre || !jornadaForm.horaInicio || !jornadaForm.horaFin) {
-      alert("Complete los campos requeridos");
+      toast.warning("Complete los campos requeridos");
       return;
     }
 
     if (!jornadaForm.esExcepcion && jornadaForm.diasSemana.length === 0) {
-      alert("Seleccione al menos un día de la semana o marque como excepción");
+      toast.warning("Seleccione al menos un día de la semana o marque como excepción");
       return;
     }
 
@@ -280,16 +281,16 @@ export default function SuperusuarioPage() {
       });
 
       if (res.ok) {
-        alert(`Jornada ${editingJornada ? "actualizada" : "creada"} exitosamente`);
+        toast.success(`Jornada ${editingJornada ? "actualizada" : "creada"} exitosamente`);
         setShowJornadaModal(false);
         cargarDatos();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al guardar jornada");
+        toast.error(error.error || "Error al guardar jornada");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al guardar jornada");
+      toast.error("Error al guardar jornada");
     } finally {
       setLoading(false);
     }
@@ -304,14 +305,14 @@ export default function SuperusuarioPage() {
       });
 
       if (res.ok) {
-        alert("Jornada eliminada exitosamente");
+        toast.success("Jornada eliminada exitosamente");
         cargarDatos();
       } else {
-        alert("Error al eliminar jornada");
+        toast.error("Error al eliminar jornada");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al eliminar jornada");
+      toast.error("Error al eliminar jornada");
     }
   };
 
@@ -339,12 +340,12 @@ export default function SuperusuarioPage() {
 
   const guardarUsuario = async () => {
     if (!usuarioForm.email || !usuarioForm.nombre || !usuarioForm.role) {
-      alert("Complete los campos requeridos");
+      toast.warning("Complete los campos requeridos");
       return;
     }
 
     if (!editingUsuario && !usuarioForm.password) {
-      alert("La contraseña es requerida para nuevos usuarios");
+      toast.warning("La contraseña es requerida para nuevos usuarios");
       return;
     }
 
@@ -363,16 +364,16 @@ export default function SuperusuarioPage() {
       });
 
       if (res.ok) {
-        alert(`Usuario ${editingUsuario ? "actualizado" : "creado"} exitosamente`);
+        toast.success(`Usuario ${editingUsuario ? "actualizado" : "creado"} exitosamente`);
         setShowUsuarioModal(false);
         cargarDatos();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al guardar usuario");
+        toast.error(error.error || "Error al guardar usuario");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al guardar usuario");
+      toast.error("Error al guardar usuario");
     } finally {
       setLoading(false);
     }
@@ -389,15 +390,15 @@ export default function SuperusuarioPage() {
       });
 
       if (res.ok) {
-        alert(`Usuario ${activo ? "desactivado" : "activado"} exitosamente`);
+        toast.success(`Usuario ${activo ? "desactivado" : "activado"} exitosamente`);
         cargarDatos();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al cambiar estado del usuario");
+        toast.error(error.error || "Error al cambiar estado del usuario");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cambiar estado del usuario");
+      toast.error("Error al cambiar estado del usuario");
     }
   };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Navbar } from "@/components/navbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -177,16 +178,16 @@ export default function ProduccionPage() {
       });
 
       if (res.ok) {
-        alert("Actividad cerrada exitosamente");
+        toast.success("Actividad cerrada exitosamente");
         cargarActividadesActivas();
         cargarDatos();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al cerrar actividad");
+        toast.error(error.error || "Error al cerrar actividad");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cerrar actividad");
+      toast.error("Error al cerrar actividad");
     } finally {
       setLoading(false);
     }
@@ -203,7 +204,7 @@ export default function ProduccionPage() {
 
   const cerrarActividadConHora = async () => {
     if (!actividadACerrar || !horaFinCierre) {
-      alert("Debe especificar la hora de finalización");
+      toast.warning("Debe especificar la hora de finalización");
       return;
     }
 
@@ -250,7 +251,7 @@ export default function ProduccionPage() {
         const diffMs = horaFinDate.getTime() - horaInicio.getTime();
         const horasTrabajadas = diffMs / (1000 * 60 * 60);
         if (horasTrabajadas > 24) {
-          alert("Error: La actividad no puede durar más de 24 horas. Verifica la hora de finalización.");
+          toast.error("Error: La actividad no puede durar más de 24 horas. Verifica la hora de finalización.");
           setLoading(false);
           return;
         }
@@ -265,7 +266,7 @@ export default function ProduccionPage() {
       });
 
       if (res.ok) {
-        alert("Actividad cerrada exitosamente");
+        toast.success("Actividad cerrada exitosamente");
         setModalCerrarActividad(false);
         setActividadACerrar(null);
         setHoraFinCierre("");
@@ -273,11 +274,11 @@ export default function ProduccionPage() {
         cargarDatos();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al cerrar actividad");
+        toast.error(error.error || "Error al cerrar actividad");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cerrar actividad");
+      toast.error("Error al cerrar actividad");
     } finally {
       setLoading(false);
     }
@@ -305,7 +306,7 @@ export default function ProduccionPage() {
 
   const registrarProduccion = async () => {
     if (!selectedTrabajador || !selectedActividad) {
-      alert("Por favor seleccione trabajador y actividad");
+      toast.warning("Por favor seleccione trabajador y actividad");
       return;
     }
 
@@ -314,18 +315,18 @@ export default function ProduccionPage() {
 
     // Validación: No se puede registrar producción si hay actividad por horas activa
     if (actividadesActivas.length > 0) {
-      alert("Hay actividades por horas activas. Debe cerrarlas antes de continuar.");
+      toast.warning("Hay actividades por horas activas. Debe cerrarlas antes de continuar.");
       return;
     }
 
     // Validación para POR_HORA: debe tener asistencia registrada con entrada
     if (actividad.tipoPago === "POR_HORA") {
       if (!asistenciaDelDia || !asistenciaDelDia.horaEntrada) {
-        alert("El trabajador no tiene asistencia registrada para esta fecha");
+        toast.warning("El trabajador no tiene asistencia registrada para esta fecha");
         return;
       }
       if (!horaInicio) {
-        alert("Por favor especifique la hora de inicio");
+        toast.warning("Por favor especifique la hora de inicio");
         return;
       }
     }
@@ -333,11 +334,11 @@ export default function ProduccionPage() {
     // Validación para POR_PRODUCCION: debe tener asistencia registrada con al menos entrada
     if (actividad.tipoPago === "POR_PRODUCCION") {
       if (!asistenciaDelDia || !asistenciaDelDia.horaEntrada) {
-        alert("El trabajador no tiene asistencia (hora de entrada) registrada para esta fecha");
+        toast.warning("El trabajador no tiene asistencia (hora de entrada) registrada para esta fecha");
         return;
       }
       if (!cantidadProducida) {
-        alert("Por favor ingrese la cantidad producida");
+        toast.warning("Por favor ingrese la cantidad producida");
         return;
       }
     }
@@ -368,7 +369,7 @@ export default function ProduccionPage() {
           const diffMs = horaFinDate.getTime() - horaInicioDate.getTime();
           const horasTrabajadas = diffMs / (1000 * 60 * 60);
           if (horasTrabajadas > 24) {
-            alert("Error: La actividad no puede durar más de 24 horas. Verifica las horas ingresadas.");
+            toast.error("Error: La actividad no puede durar más de 24 horas. Verifica las horas ingresadas.");
             setLoading(false);
             return;
           }
@@ -393,7 +394,7 @@ export default function ProduccionPage() {
       });
 
       if (res.ok) {
-        alert("Producción registrada exitosamente");
+        toast.success("Producción registrada exitosamente");
         setSelectedTrabajador("");
         setSelectedActividad("");
         setAsistenciaDelDia(null);
@@ -405,11 +406,11 @@ export default function ProduccionPage() {
         cargarDatos();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al registrar producción");
+        toast.error(error.error || "Error al registrar producción");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al registrar producción");
+      toast.error("Error al registrar producción");
     } finally {
       setLoading(false);
     }
@@ -417,7 +418,7 @@ export default function ProduccionPage() {
 
   const crearActividad = async () => {
     if (!nuevaActividad.nombre) {
-      alert("Por favor ingrese el nombre de la actividad");
+      toast.warning("Por favor ingrese el nombre de la actividad");
       return;
     }
 
@@ -430,7 +431,7 @@ export default function ProduccionPage() {
       });
 
       if (res.ok) {
-        alert("Actividad creada exitosamente");
+        toast.success("Actividad creada exitosamente");
         setShowNuevaActividad(false);
         setNuevaActividad({
           nombre: "",
@@ -445,11 +446,11 @@ export default function ProduccionPage() {
         cargarDatos();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al crear actividad");
+        toast.error(error.error || "Error al crear actividad");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al crear actividad");
+      toast.error("Error al crear actividad");
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Navbar } from "@/components/navbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -98,7 +99,9 @@ export default function TrabajadoresPage() {
 
     // Validar cédula ecuatoriana
     if (!validarCedulaEcuatoriana(formData.dni)) {
-      alert("La cédula ingresada no es válida. Debe ser una cédula ecuatoriana de 10 dígitos.");
+      toast.error("Cédula inválida", {
+        description: "Debe ingresar una cédula ecuatoriana válida de 10 dígitos."
+      });
       return;
     }
 
@@ -115,7 +118,7 @@ export default function TrabajadoresPage() {
       });
 
       if (res.ok) {
-        alert(editingId ? "Trabajador actualizado exitosamente" : "Trabajador creado exitosamente");
+        toast.success(editingId ? "Trabajador actualizado exitosamente" : "Trabajador creado exitosamente");
         setShowModal(false);
         setEditingId(null);
         setFormData({
@@ -136,11 +139,13 @@ export default function TrabajadoresPage() {
         recargarTrabajadores();
       } else {
         const error = await res.json();
-        alert(error.error || `Error al ${editingId ? "actualizar" : "crear"} trabajador`);
+        toast.error(`Error al ${editingId ? "actualizar" : "crear"} trabajador`, {
+          description: error.error
+        });
       }
     } catch (error) {
       console.error("Error:", error);
-      alert(`Error al ${editingId ? "actualizar" : "crear"} trabajador`);
+      toast.error(`Error al ${editingId ? "actualizar" : "crear"} trabajador`);
     } finally {
       setLoading(false);
     }
@@ -175,15 +180,17 @@ export default function TrabajadoresPage() {
       });
 
       if (res.ok) {
-        alert("Trabajador desactivado exitosamente");
+        toast.success("Trabajador desactivado exitosamente");
         recargarTrabajadores();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al desactivar trabajador");
+        toast.error("Error al desactivar trabajador", {
+          description: error.error
+        });
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al desactivar trabajador");
+      toast.error("Error al desactivar trabajador");
     }
   };
 
@@ -198,15 +205,17 @@ export default function TrabajadoresPage() {
       });
 
       if (res.ok) {
-        alert("Trabajador reactivado exitosamente");
+        toast.success("Trabajador reactivado exitosamente");
         recargarTrabajadores();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al reactivar trabajador");
+        toast.error("Error al reactivar trabajador", {
+          description: error.error
+        });
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al reactivar trabajador");
+      toast.error("Error al reactivar trabajador");
     }
   };
 

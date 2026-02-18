@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Navbar } from "@/components/navbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -108,7 +109,9 @@ export default function PuertaPage() {
 
   const registrarAsistencia = async (tipo: "entrada" | "salida") => {
     if (!selectedTrabajador) {
-      alert("Por favor seleccione un trabajador");
+      toast.warning("Trabajador requerido", {
+        description: "Por favor seleccione un trabajador de la lista",
+      });
       return;
     }
 
@@ -120,12 +123,16 @@ export default function PuertaPage() {
       );
       
       if (!asistenciaExistente || !asistenciaExistente.horaEntrada) {
-        alert("No se puede registrar salida sin una entrada previa en esta fecha");
+        toast.error("Entrada no registrada", {
+          description: "No se puede registrar salida sin una entrada previa en esta fecha",
+        });
         return;
       }
       
       if (asistenciaExistente.horaSalida) {
-        alert("Ya existe una salida registrada para este trabajador en esta fecha");
+        toast.error("Salida ya registrada", {
+          description: "Ya existe una salida registrada para este trabajador en esta fecha",
+        });
         return;
       }
       
@@ -135,7 +142,9 @@ export default function PuertaPage() {
 
     // Validar hora manual si está activada
     if (usarHoraManual && !horaManual) {
-      alert("Debe seleccionar una hora");
+      toast.warning("Hora requerida", {
+        description: "Debe seleccionar una hora cuando usa hora manual",
+      });
       return;
     }
 
@@ -155,7 +164,9 @@ export default function PuertaPage() {
       });
 
       if (res.ok) {
-        alert(`${tipo === "entrada" ? "Entrada" : "Salida"} registrada exitosamente`);
+        toast.success(`${tipo === "entrada" ? "Entrada" : "Salida"} registrada`, {
+          description: `${tipo === "entrada" ? "Entrada" : "Salida"} registrada exitosamente para ${trabajadores.find(t => t.id === selectedTrabajador)?.nombres}`,
+        });
         setSelectedTrabajador("");
         setSearchDni("");
         setObservaciones("");
@@ -163,11 +174,15 @@ export default function PuertaPage() {
         cargarAsistenciasHoy();
       } else {
         const error = await res.json();
-        alert(error.error || "Error al registrar asistencia");
+        toast.error("Error al registrar", {
+          description: error.error || "Error al registrar asistencia",
+        });
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al registrar asistencia");
+      toast.error("Error inesperado", {
+        description: "Ocurrió un error al registrar la asistencia",
+      });
     } finally {
       setLoading(false);
     }
