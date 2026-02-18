@@ -173,14 +173,14 @@ export async function POST(request: NextRequest) {
     });
 
     let adelantos = new Decimal(0);
-    let multas = new Decimal(0);
+    let multasTransacciones = new Decimal(0);
     let ajustes = new Decimal(0);
 
     transacciones.forEach((trans) => {
       if (trans.tipo === "ADELANTO") {
         adelantos = adelantos.add(trans.monto);
       } else if (trans.tipo === "MULTA") {
-        multas = multas.add(trans.monto);
+        multasTransacciones = multasTransacciones.add(trans.monto);
       } else if (trans.tipo === "AJUSTE") {
         ajustes = ajustes.add(trans.monto);
       }
@@ -189,24 +189,22 @@ export async function POST(request: NextRequest) {
     // Calcular bonificación para trabajadores FIJOS
     let bonificacionCalculada = new Decimal(0);
     if (esTrabajadorFijo) {
-      // Si trabajó menos del salario base, bonificar la diferencia menos multas
+      // FÓRMULA CORRECTA: bonificación = salarioBase - sueldoTrabajado (sin restar multas)
+      // Las multas se descuentan del totalNeto final
       const diferencia = salarioBasePeriodo.sub(sueldoTrabajado);
       if (diferencia.greaterThan(0)) {
-        bonificacionCalculada = diferencia.sub(multas);
-        if (bonificacionCalculada.lessThan(0)) {
-          bonificacionCalculada = new Decimal(0);
-        }
+        bonificacionCalculada = diferencia;
       }
     }
 
     // Calcular total neto
     let totalNeto = new Decimal(0);
     if (esTrabajadorFijo) {
-      // Para FIJOS: salarioBase + bonificacion - adelantos + ajustes
-      totalNeto = salarioBasePeriodo.add(bonificacionCalculada).sub(adelantos).add(ajustes);
+      // Para FIJOS: salarioBase + bonificacion - adelantos - multas + ajustes
+      totalNeto = salarioBasePeriodo.add(bonificacionCalculada).sub(adelantos).sub(multasTransacciones).add(ajustes);
     } else {
       // Para EVENTUALES: montoBase - adelantos - multas + ajustes
-      totalNeto = montoBase.sub(adelantos).sub(multas).add(ajustes);
+      totalNeto = montoBase.sub(adelantos).sub(multasTransacciones).add(ajustes);
     }
 
     // Calcular días trabajados
@@ -251,7 +249,7 @@ export async function POST(request: NextRequest) {
         
         // Descuentos y bonificaciones
         adelantos: adelantos.toString(),
-        multas: multas.toString(),
+        multasTransacciones: multasTransacciones.toString(), // Multas manuales
         ajustes: ajustes.toString(),
         bonificacionCalculada: bonificacionCalculada.toString(),
         

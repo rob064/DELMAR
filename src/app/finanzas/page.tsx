@@ -190,16 +190,41 @@ export default function FinanzasPage() {
       return;
     }
 
+    // Validar bonificación si fue editada para trabajadores FIJOS
+    if (previewData && previewData.trabajador.tipoTrabajador === "FIJO") {
+      const bonificacionNumero = parseFloat(bonificacionEditable);
+      if (isNaN(bonificacionNumero) || bonificacionNumero < 0) {
+        alert("La bonificación debe ser un valor válido y no negativo");
+        return;
+      }
+
+      // Si la bonificación fue editada manualmente (diferente a la calculada), exigir concepto
+      const bonifCalc = parseFloat(previewData.resumen.bonificacionCalculada || "0");
+      if (Math.abs(bonificacionNumero - bonifCalc) > 0.01 && !conceptoBonificacion.trim()) {
+        alert("Debe proporcionar un concepto/justificación al editar la bonificación manualmente");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
+      const body: any = {
+        trabajadorId: trabajadorNomina,
+        fechaInicio: fechaInicioNomina,
+        fechaFin: fechaFinNomina,
+      };
+
+      // Para trabajadores FIJOS, incluir bonificación
+      if (previewData && previewData.trabajador.tipoTrabajador === "FIJO") {
+        body.bonificacion = parseFloat(bonificacionEditable);
+        body.bonificacionCalculada = parseFloat(previewData.resumen.bonificacionCalculada || "0");
+        body.conceptoBonificacion = conceptoBonificacion.trim() || null;
+      }
+
       const res = await fetch("/api/pagos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          trabajadorId: trabajadorNomina,
-          fechaInicio: fechaInicioNomina,
-          fechaFin: fechaFinNomina,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
@@ -207,6 +232,8 @@ export default function FinanzasPage() {
         setTrabajadorNomina("");
         setShowPreviewNomina(false);
         setPreviewData(null);
+        setBonificacionEditable("");
+        setConceptoBonificacion("");
         cargarDatos();
       } else {
         const error = await res.json();
@@ -966,12 +993,12 @@ export default function FinanzasPage() {
                         </div>
                       </div>
 
-                      {/* Multas */}
-                      {parseFloat(previewData.resumen.multas) > 0 && (
+                      {/* Multas manuales (transacciones tipo MULTA) */}
+                      {parseFloat(previewData.resumen.multasTransacciones || "0") > 0 && (
                         <div className="flex justify-between items-center">
-                          <span>Multas (retardos/faltas):</span>
+                          <span>Multas aplicadas:</span>
                           <div className="flex items-center gap-2">
-                            <span className="text-red-600">-{formatCurrency(previewData.resumen.multas)}</span>
+                            <span className="text-red-600">-{formatCurrency(previewData.resumen.multasTransacciones)}</span>
                             <Button
                               size="sm"
                               variant="outline"
@@ -1035,7 +1062,8 @@ export default function FinanzasPage() {
                           {formatCurrency(
                             parseFloat(previewData.resumen.salarioBasePeriodo || "0") +
                             parseFloat(bonificacionEditable || "0") -
-                            parseFloat(previewData.resumen.adelantos || "0") +
+                            parseFloat(previewData.resumen.adelantos || "0") -
+                            parseFloat(previewData.resumen.multasTransacciones || "0") +
                             parseFloat(previewData.resumen.ajustes || "0")
                           )}
                         </span>
@@ -1066,8 +1094,8 @@ export default function FinanzasPage() {
                         <span className="text-orange-600">-{formatCurrency(previewData.resumen.adelantos)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Multas:</span>
-                        <span className="text-red-600">-{formatCurrency(previewData.resumen.multas)}</span>
+                        <span>Multas aplicadas:</span>
+                        <span className="text-red-600">-{formatCurrency(previewData.resumen.multasTransacciones || "0")}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Ajustes:</span>

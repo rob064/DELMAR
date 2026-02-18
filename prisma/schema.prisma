@@ -291,45 +291,62 @@ model Transaccion {
 // ==========================================
 
 model Pago {
-  id                String     @id @default(cuid())
+  id                String          @id @default(cuid())
   trabajadorId      String
-  trabajador        Trabajador @relation(fields: [trabajadorId], references: [id], onDelete: Cascade)
+  trabajador        Trabajador      @relation(fields: [trabajadorId], references: [id], onDelete: Cascade)
   
   // Período del pago
-  fechaInicio       DateTime   @db.Date
-  fechaFin          DateTime   @db.Date
+  fechaInicio       DateTime        @db.Date
+  fechaFin          DateTime        @db.Date
   
-  // NUEVO: Tipo de trabajador
-  tipoTrabajador    String?    // "FIJO" o "EVENTUAL"
+  // Tipo de trabajador (crítico para cálculos)
+  tipoTrabajador    TipoTrabajador  @default(EVENTUAL)
   
-  // Cálculos para EVENTUALES (existente)
-  totalHoras        Decimal    @default(0) @db.Decimal(10, 2)
-  totalProduccion   Decimal    @default(0) @db.Decimal(10, 2)
+  // ============================================
+  // CAMPOS PARA TRABAJADORES EVENTUALES
+  // ============================================
+  totalHoras        Decimal         @default(0) @db.Decimal(10, 2)
+  totalProduccion   Decimal         @default(0) @db.Decimal(10, 2)
+  montoBase         Decimal         @default(0) @db.Decimal(10, 2) // Total producción
   
-  // NUEVO: Cálculos para FIJOS
-  salarioBasePeriodo          Decimal? @db.Decimal(10, 2) // Base del periodo (mensual/quincenal)
+  // ============================================
+  // CAMPOS PARA TRABAJADORES FIJOS
+  // ============================================
+  salarioBasePeriodo          Decimal? @db.Decimal(10, 2) // Salario base del periodo (quincenal/mensual)
   
+  // Desglose de horas trabajadas
   horasNormales               Decimal? @db.Decimal(10, 2)
   horasSuplementarias         Decimal? @db.Decimal(10, 2)
   horasExtra                  Decimal? @db.Decimal(10, 2)
   
+  // Montos por tipo de hora
   montoHorasNormales          Decimal? @db.Decimal(10, 2)
   montoHorasSuplementarias    Decimal? @db.Decimal(10, 2)
   montoHorasExtra             Decimal? @db.Decimal(10, 2)
   
-  sueldoTrabajado             Decimal? @db.Decimal(10, 2) // Suma de todos los montos de horas
-  totalMultas                 Decimal  @default(0) @db.Decimal(10, 2) // Multas retardo/faltas
+  sueldoTrabajado             Decimal? @db.Decimal(10, 2) // Suma de montos de horas
   
-  // NUEVO: Bonificación (editable)
-  bonificacion                Decimal  @default(0) @db.Decimal(10, 2)
-  bonificacionCalculada       Decimal? @db.Decimal(10, 2) // Auto-calculada
-  conceptoBonificacion        String?  // Justificación
+  // Descuentos automáticos por retardos/faltas (calculados en asistencias)
+  totalDescuentos             Decimal  @default(0) @db.Decimal(10, 2)
   
-  montoBase         Decimal    @default(0) @db.Decimal(10, 2)
-  adelantos         Decimal    @default(0) @db.Decimal(10, 2)
-  multas            Decimal    @default(0) @db.Decimal(10, 2) // Deprecated, usar totalMultas
-  ajustes           Decimal    @default(0) @db.Decimal(10, 2)
+  // Bonificación para alcanzar salario base
+  // Fórmula: salarioBasePeriodo - sueldoTrabajado (si positivo)
+  bonificacion                Decimal  @default(0) @db.Decimal(10, 2) // Aplicada (puede ser editada)
+  bonificacionCalculada       Decimal? @db.Decimal(10, 2) // Auto-calculada (referencia)
+  conceptoBonificacion        String?  // Justificación si es editada manualmente
   
+  // ============================================
+  // DESCUENTOS Y AJUSTES (AMBOS TIPOS)
+  // ============================================
+  adelantos         Decimal    @default(0) @db.Decimal(10, 2) // Transacciones tipo ADELANTO
+  multasTransacciones Decimal  @default(0) @db.Decimal(10, 2) // Transacciones tipo MULTA (manual)
+  ajustes           Decimal    @default(0) @db.Decimal(10, 2) // Transacciones tipo AJUSTE
+  
+  // ============================================
+  // TOTALES
+  // ============================================
+  // FIJOS: salarioBase + bonificacion - adelantos - multas + ajustes - descuentos
+  // EVENTUALES: montoBase - adelantos - multas + ajustes
   totalNeto         Decimal    @default(0) @db.Decimal(10, 2)
   
   // Estado de pago (soporta pagos parciales)
@@ -346,8 +363,10 @@ model Pago {
   // Relación con abonos
   abonos            Abono[]
 
+  @@unique([trabajadorId, fechaInicio, fechaFin]) // Evitar nóminas duplicadas
   @@index([trabajadorId])
   @@index([fechaInicio, fechaFin])
+  @@index([tipoTrabajador])
   @@map("pagos")
 }
 
