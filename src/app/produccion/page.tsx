@@ -240,18 +240,20 @@ export default function ProduccionPage() {
       
       // DETECCIÓN AUTOMÁTICA DE CRUCE DE MEDIANOCHE
       // Si hora fin < hora inicio, asumir que es del día siguiente
-      const horaInicio = new Date(actividadACerrar.horaInicio);
-      if (horaFinDate < horaInicio) {
-        horaFinDate = new Date(year, month, day + 1, horasFin, minutosFin, 0, 0);
-      }
-      
-      // Validar que no sea más de 24 horas (probable error)
-      const diffMs = horaFinDate.getTime() - horaInicio.getTime();
-      const horasTrabajadas = diffMs / (1000 * 60 * 60);
-      if (horasTrabajadas > 24) {
-        alert("Error: La actividad no puede durar más de 24 horas. Verifica la hora de finalización.");
-        setLoading(false);
-        return;
+      if (actividadACerrar.horaInicio) {
+        const horaInicio = new Date(actividadACerrar.horaInicio);
+        if (horaFinDate < horaInicio) {
+          horaFinDate = new Date(year, month, day + 1, horasFin, minutosFin, 0, 0);
+        }
+        
+        // Validar que no sea más de 24 horas (probable error)
+        const diffMs = horaFinDate.getTime() - horaInicio.getTime();
+        const horasTrabajadas = diffMs / (1000 * 60 * 60);
+        if (horasTrabajadas > 24) {
+          alert("Error: La actividad no puede durar más de 24 horas. Verifica la hora de finalización.");
+          setLoading(false);
+          return;
+        }
       }
       
       const res = await fetch(`/api/produccion/${actividadACerrar.id}/cerrar`, {
@@ -940,7 +942,7 @@ export default function ProduccionPage() {
                     step="60"
                   />
                   {horaFinCierre && actividadACerrar?.horaInicio && (() => {
-                    const horaInicioStr = new Date(actividadACerrar.horaInicio).toTimeString().substring(0, 5);
+                    const horaInicioStr = new Date(actividadACerrar.horaInicio!).toTimeString().substring(0, 5);
                     return horaFinCierre < horaInicioStr && (
                       <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
                         🌙 Actividad cruza medianoche (termina día siguiente)
