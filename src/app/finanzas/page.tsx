@@ -11,6 +11,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDate, obtenerFechaSemana } from "@/lib/utils";
 import { DollarSign, Plus, TrendingDown, TrendingUp, X, AlertCircle, CheckCircle2, Clock, Receipt } from "lucide-react";
 
+interface Trabajador {
+  id: string;
+  nombres: string;
+  apellidos: string;
+  dni: string;
+  telefono?: string;
+  direccion?: string;
+  activo: boolean;
+  tipoTrabajador: string;
+  jornadaId?: string;
+  usuario: {
+    email: string;
+  };
+}
+
 interface Transaccion {
   id: string;
   tipo: string;
