@@ -677,7 +677,7 @@ export default function FinanzasPage() {
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
                           <span className="text-muted-foreground">Base: </span>
-                          <span>{formatCurrency(pago.salarioBasePeriodo || pago.montoBase)}</span>
+                          <span>{formatCurrency(pago.montoBase)}</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Adelantos: </span>
@@ -685,7 +685,7 @@ export default function FinanzasPage() {
                         </div>
                         <div>
                           <span className="text-muted-foreground">Multas: </span>
-                          <span className="text-red-600">-{formatCurrency(pago.multasTransacciones || 0)}</span>
+                          <span className="text-red-600">-{formatCurrency(pago.adelantos)}</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Neto: </span>
