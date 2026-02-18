@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatTime, formatDate, getLocalDateString, parseDateString } from "@/lib/utils";
-import { Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Clock, CheckCircle, XCircle, AlertCircle, Search, User, LogIn, LogOut, Users, TrendingUp, Award } from "lucide-react";
 
 interface Trabajador {
   id: string;
@@ -228,6 +228,25 @@ export default function PuertaPage() {
     }
   };
 
+  const getEstadoBadge = (estado: string) => {
+    const styles = {
+      PRESENTE: "bg-success/10 text-success border-success/20",
+      TARDE: "bg-warning/10 text-warning border-warning/20",
+      AUSENTE: "bg-destructive/10 text-destructive border-destructive/20",
+    };
+    return styles[estado as keyof typeof styles] || "bg-muted text-muted-foreground border-muted";
+  };
+
+  // Stats del día
+  const statsDelDia = {
+    totalTrabajadores: trabajadores.filter(t => t.tipoTrabajador === "FIJO").length,
+    totalAsistencias: asistenciasHoy.length,
+    tardanzas: asistenciasHoy.filter(a => a.estado === "TARDE").length,
+    porcentajeAsistencia: trabajadores.filter(t => t.tipoTrabajador === "FIJO").length > 0
+      ? Math.round((asistenciasHoy.length / trabajadores.filter(t => t.tipoTrabajador === "FIJO").length) * 100)
+      : 0,
+  };
+
   return (
     <div className="min-h-screen bg-muted/30">
       <Navbar />
@@ -275,8 +294,9 @@ export default function PuertaPage() {
                       <Button
                         onClick={() => registrarAsistencia("entrada")}
                         disabled={loading}
-                        size="sm"
+                        className="gap-2 bg-gradient-to-r from-success to-green-700 hover:from-success/90 hover:to-green-700/90"
                       >
+                        <LogIn className="h-4 w-4" />
                         Registrar Entrada
                       </Button>
                     );
@@ -286,8 +306,9 @@ export default function PuertaPage() {
                         onClick={() => registrarAsistencia("salida")}
                         disabled={loading}
                         variant="secondary"
-                        size="sm"
+                        className="gap-2 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white"
                       >
+                        <LogOut className="h-4 w-4" />
                         Registrar Salida
                       </Button>
                     );
@@ -333,35 +354,109 @@ export default function PuertaPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="search">Buscar Trabajador (DNI o Nombre)</Label>
-                <Input
-                  id="search"
-                  placeholder="Escriba DNI o nombre..."
-                  value={searchDni}
-                  onChange={(e) => setSearchDni(e.target.value)}
-                />
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="search"
+                    placeholder="Escriba DNI o nombre..."
+                    value={searchDni}
+                    onChange={(e) => setSearchDni(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
 
               {searchDni && (
                 <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-2">
-                  {trabajadoresFiltrados.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => {
-                        setSelectedTrabajador(t.id);
-                        setSearchDni(`${t.nombres} ${t.apellidos} - ${t.dni}`);
-                      }}
-                      className={`w-full rounded-md p-3 text-left hover:bg-gray-100 ${
-                        selectedTrabajador === t.id ? "bg-blue-50" : ""
-                      }`}
-                    >
-                      <p className="font-medium">
-                        {t.nombres} {t.apellidos}
-                      </p>
-                      <p className="text-sm text-muted-foreground">DNI: {t.dni}</p>
-                    </button>
-                  ))}
+                  {trabajadoresFiltrados.length === 0 ? (
+                    <p className="py-4 text-center text-sm text-muted-foreground">
+                      No se encontraron trabajadores
+                    </p>
+                  ) : (
+                    trabajadoresFiltrados.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          setSelectedTrabajador(t.id);
+                          setSearchDni(`${t.nombres} ${t.apellidos} - ${t.dni}`);
+                        }}
+                        className={`w-full rounded-md p-3 text-left transition-colors hover:bg-accent ${
+                          selectedTrabajador === t.id ? "bg-primary/10 border border-primary/20" : ""
+                        }`}
+                      >
+                        <p className="font-medium">
+                          {t.nombres} {t.apellidos}
+                        </p>
+                        <p className="text-sm text-muted-foreground">DNI: {t.dni}</p>
+                      </button>
+                    ))
+                  )}
                 </div>
               )}
+
+              {/* Card informativa del trabajador seleccionado */}
+              {selectedTrabajador && (() => {
+                const trabajador = trabajadores.find(t => t.id === selectedTrabajador);
+                const asistencia = asistenciasHoy.find(a => a.trabajadorId === selectedTrabajador);
+                const tieneEntrada = asistencia?.horaEntrada;
+                const tieneSalida = asistencia?.horaSalida;
+
+                if (!trabajador) return null;
+
+                return (
+                  <Card className="border-primary/20 bg-primary/5">
+                    <CardContent className="pt-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                            <User className="h-6 w-6 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-lg">
+                              {trabajador.nombres} {trabajador.apellidos}
+                            </p>
+                            <p className="text-sm text-muted-foreground">DNI: {trabajador.dni}</p>
+                            <div className="mt-1 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium bg-background">
+                              {trabajador.tipoTrabajador}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          {!tieneEntrada && (
+                            <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                              <Clock className="h-3 w-3" />
+                              Sin entrada
+                            </div>
+                          )}
+                          {tieneEntrada && !tieneSalida && (
+                            <div className="space-y-1">
+                              <div className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+                                <LogIn className="h-3 w-3" />
+                                Entrada registrada
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {formatTime(new Date(asistencia.horaEntrada))}
+                              </p>
+                            </div>
+                          )}
+                          {tieneEntrada && tieneSalida && (
+                            <div className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                              <CheckCircle className="h-3 w-3" />
+                              Asistencia completa
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {asistencia?.turnoProgramado && (
+                        <div className="mt-3 rounded-md border bg-background p-2">
+                          <p className="text-xs text-muted-foreground">Jornada programada:</p>
+                          <p className="text-sm font-medium">{asistencia.turnoProgramado}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })()}
 
               {selectedTrabajador && (() => {
                 const trabajador = trabajadores.find(t => t.id === selectedTrabajador);
@@ -476,8 +571,56 @@ export default function PuertaPage() {
                 />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="max-h-[500px] space-y-3 overflow-y-auto">
+            <CardContent className="space-y-4">
+              {/* Stats del día */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border bg-gradient-to-br from-primary/5 to-blue-50/50 p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-md bg-primary/10 p-2">
+                      <Users className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{statsDelDia.totalAsistencias}</p>
+                      <p className="text-xs text-muted-foreground">Asistencias</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="rounded-lg border bg-gradient-to-br from-warning/5 to-yellow-50/50 p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-md bg-warning/10 p-2">
+                      <Clock className="h-4 w-4 text-warning" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{statsDelDia.tardanzas}</p>
+                      <p className="text-xs text-muted-foreground">Tardanzas</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="rounded-lg border bg-gradient-to-br from-success/5 to-green-50/50 p-3 col-span-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-md bg-success/10 p-2">
+                        <TrendingUp className="h-4 w-4 text-success" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold">{statsDelDia.porcentajeAsistencia}%</p>
+                        <p className="text-xs text-muted-foreground">Asistencia del día</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {statsDelDia.totalAsistencias} de {statsDelDia.totalTrabajadores}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t" />
+
+              {/* Lista de asistencias */}
+              <div className="max-h-[380px] space-y-3 overflow-y-auto">
                 {asistenciasHoy.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
                     No hay registros para esta fecha
@@ -486,29 +629,43 @@ export default function PuertaPage() {
                   asistenciasHoy.map((asistencia) => (
                     <div
                       key={asistencia.id}
-                      className="flex items-center justify-between rounded-lg border p-3"
+                      className="flex items-start justify-between rounded-lg border p-3 hover:bg-accent/50 transition-colors"
                     >
-                      <div className="flex items-center gap-3">
-                        {getEstadoIcon(asistencia.estado)}
-                        <div>
-                          <p className="font-medium">
-                            {asistencia.trabajador.nombres} {asistencia.trabajador.apellidos}
-                          </p>
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5">
+                          {getEstadoIcon(asistencia.estado)}
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">
+                              {asistencia.trabajador.nombres} {asistencia.trabajador.apellidos}
+                            </p>
+                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${getEstadoBadge(asistencia.estado)}`}>
+                              {asistencia.estado}
+                            </span>
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             DNI: {asistencia.trabajador.dni}
                           </p>
+                          {asistencia.turnoProgramado && (
+                            <p className="text-xs text-muted-foreground">
+                              Jornada: {asistencia.turnoProgramado}
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right space-y-1">
                         {asistencia.horaEntrada && (
-                          <p className="text-sm">
-                            Entrada: {formatTime(new Date(asistencia.horaEntrada))}
-                          </p>
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <LogIn className="h-3 w-3 text-muted-foreground" />
+                            <span>{formatTime(new Date(asistencia.horaEntrada))}</span>
+                          </div>
                         )}
                         {asistencia.horaSalida && (
-                          <p className="text-sm">
-                            Salida: {formatTime(new Date(asistencia.horaSalida))}
-                          </p>
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <LogOut className="h-3 w-3 text-muted-foreground" />
+                            <span>{formatTime(new Date(asistencia.horaSalida))}</span>
+                          </div>
                         )}
                         {asistencia.minutosRetraso > 0 && (() => {
                           const minutos = asistencia.minutosRetraso;
@@ -517,17 +674,18 @@ export default function PuertaPage() {
                           
                           let mensaje = "";
                           if (horas > 0 && mins > 0) {
-                            mensaje = `${horas} ${horas === 1 ? 'hora' : 'horas'} y ${mins} ${mins === 1 ? 'minuto' : 'minutos'} de atraso`;
+                            mensaje = `${horas}h ${mins}m tarde`;
                           } else if (horas > 0) {
-                            mensaje = `${horas} ${horas === 1 ? 'hora' : 'horas'} de atraso`;
+                            mensaje = `${horas}h tarde`;
                           } else {
-                            mensaje = `${mins} ${mins === 1 ? 'minuto' : 'minutos'} de atraso`;
+                            mensaje = `${mins}m tarde`;
                           }
                           
                           return (
-                            <p className="text-xs text-yellow-600 font-medium mt-1">
+                            <div className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                              <AlertCircle className="h-3 w-3" />
                               {mensaje}
-                            </p>
+                            </div>
                           );
                         })()}
                       </div>
