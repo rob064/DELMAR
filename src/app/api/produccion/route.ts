@@ -167,12 +167,42 @@ export async function POST(request: NextRequest) {
         horaInicioFinal = asistencia.horaEntrada;
       }
 
-      // 3. Si se proporciona hora fin, validar duración
+      // 3. Validar que hora de inicio esté dentro del rango de asistencia
+      // Normalizar fechas a minutos para comparación
+      const horaEntrada = new Date(asistencia.horaEntrada);
+      horaEntrada.setSeconds(0, 0);
+      
+      let horaInicioNormalizada = new Date(horaInicioFinal);
+      horaInicioNormalizada.setSeconds(0, 0);
+
+      // La hora de inicio NO puede ser anterior a la hora de entrada
+      if (horaInicioNormalizada < horaEntrada) {
+        return NextResponse.json(
+          { 
+            error: `La hora de inicio (${horaInicioNormalizada.toTimeString().slice(0, 5)}) no puede ser anterior a la hora de entrada registrada (${horaEntrada.toTimeString().slice(0, 5)})` 
+          },
+          { status: 400 }
+        );
+      }
+
+      // Si hay hora de salida registrada, validar que inicio no sea posterior
+      if (asistencia.horaSalida) {
+        const horaSalida = new Date(asistencia.horaSalida);
+        horaSalida.setSeconds(0, 0);
+        
+        if (horaInicioNormalizada > horaSalida) {
+          return NextResponse.json(
+            { 
+              error: `La hora de inicio (${horaInicioNormalizada.toTimeString().slice(0, 5)}) no puede ser posterior a la hora de salida registrada (${horaSalida.toTimeString().slice(0, 5)})` 
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      // 4. Si se proporciona hora fin, validar duración
       if (horaFin) {
         const horaFinDate = new Date(horaFin);
-        const horaInicioNormalizada = new Date(horaInicioFinal);
-        horaInicioNormalizada.setSeconds(0, 0);
-        
         const horaFinNormalizada = new Date(horaFinDate);
         horaFinNormalizada.setSeconds(0, 0);
         
@@ -193,8 +223,6 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-
-        // Nota: No validamos rangos de entrada/salida ni solapamiento porque puede haber cruce de medianoche
       }
 
       // 5. Calcular horas trabajadas y monto si tiene hora fin
