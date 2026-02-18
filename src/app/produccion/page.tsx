@@ -209,10 +209,34 @@ export default function ProduccionPage() {
 
     setLoading(true);
     try {
-      // Construir horaFin completa con fecha
-      const fechaProd = new Date(actividadACerrar.fecha);
+      // Construir horaFin completa con fecha - extraer directamente del string para evitar problemas de timezone
+      const fechaStr = actividadACerrar.fecha;
+      let year: number, month: number, day: number;
+      
+      if (typeof fechaStr === 'string') {
+        // Si viene como string ISO "2026-02-16" o "2026-02-16T00:00:00.000Z"
+        const dateMatch = fechaStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (dateMatch) {
+          year = parseInt(dateMatch[1]);
+          month = parseInt(dateMatch[2]) - 1; // JavaScript months are 0-indexed
+          day = parseInt(dateMatch[3]);
+        } else {
+          // Fallback
+          const fechaProd = new Date(fechaStr);
+          year = fechaProd.getFullYear();
+          month = fechaProd.getMonth();
+          day = fechaProd.getDate();
+        }
+      } else {
+        // Si ya es un objeto Date
+        const fechaProd = new Date(fechaStr);
+        year = fechaProd.getFullYear();
+        month = fechaProd.getMonth();
+        day = fechaProd.getDate();
+      }
+      
       const [horasFin, minutosFin] = horaFinCierre.split(':').map(Number);
-      const horaFinDate = new Date(fechaProd.getFullYear(), fechaProd.getMonth(), fechaProd.getDate(), horasFin, minutosFin, 0, 0);
+      const horaFinDate = new Date(year, month, day, horasFin, minutosFin, 0, 0);
       
       const res = await fetch(`/api/produccion/${actividadACerrar.id}/cerrar`, {
         method: "PATCH",
@@ -868,7 +892,7 @@ export default function ProduccionPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Hora de Finalización *</Label>
+                  <Label>Hora de Finalización * (formato 24h)</Label>
                   <Input
                     type="time"
                     value={horaFinCierre}
@@ -876,15 +900,38 @@ export default function ProduccionPage() {
                     required
                   />
                   <p className="text-xs text-muted-foreground">
-                    Debe estar dentro del rango de entrada/salida en puerta
+                    Ingresa en formato 24 horas. Ejemplo: 23:30 para 11:30 PM
                   </p>
                 </div>
 
                 {horaFinCierre && actividadACerrar.horaInicio && actividadACerrar.actividad.valor && (() => {
                   const horaInicio = new Date(actividadACerrar.horaInicio);
-                  const fechaProd = new Date(actividadACerrar.fecha);
+                  
+                  // Extraer fecha directamente del string para evitar problemas de timezone
+                  const fechaStr = actividadACerrar.fecha;
+                  let year: number, month: number, day: number;
+                  
+                  if (typeof fechaStr === 'string') {
+                    const dateMatch = fechaStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+                    if (dateMatch) {
+                      year = parseInt(dateMatch[1]);
+                      month = parseInt(dateMatch[2]) - 1;
+                      day = parseInt(dateMatch[3]);
+                    } else {
+                      const fechaProd = new Date(fechaStr);
+                      year = fechaProd.getFullYear();
+                      month = fechaProd.getMonth();
+                      day = fechaProd.getDate();
+                    }
+                  } else {
+                    const fechaProd = new Date(fechaStr);
+                    year = fechaProd.getFullYear();
+                    month = fechaProd.getMonth();
+                    day = fechaProd.getDate();
+                  }
+                  
                   const [horasFin, minutosFin] = horaFinCierre.split(':').map(Number);
-                  const horaFinDate = new Date(fechaProd.getFullYear(), fechaProd.getMonth(), fechaProd.getDate(), horasFin, minutosFin, 0, 0);
+                  const horaFinDate = new Date(year, month, day, horasFin, minutosFin, 0, 0);
                   
                   const diffMs = horaFinDate.getTime() - horaInicio.getTime();
                   const horasTrabajadas = diffMs / (1000 * 60 * 60);
