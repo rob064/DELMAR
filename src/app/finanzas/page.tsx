@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDate, obtenerFechaSemana } from "@/lib/utils";
 import { DollarSign, Plus, TrendingDown, TrendingUp, X, AlertCircle, CheckCircle2, Clock, Receipt } from "lucide-react";
-import { Decimal } from "@prisma/client/runtime/library";
 
 interface Trabajador {
   id: string;
@@ -360,9 +359,9 @@ export default function FinanzasPage() {
     // Calcular descuento automático
     const trabajador = previewData.trabajador;
     const horasProgramadas = trabajador.jornada.horasDiariasBase;
-    const tarifa = new Decimal(trabajador.jornada.tarifaPorHora);
+    const tarifa = parseFloat(trabajador.jornada.tarifaPorHora);
     const horasFaltantes = horasProgramadas - asistencia.horasTrabajadas;
-    const descuentoAutomatico = tarifa.mul(horasFaltantes);
+    const descuentoAutomatico = tarifa * horasFaltantes;
 
     setAsistenciaJustificar(asistencia);
     setJustificacionForm({
@@ -390,9 +389,9 @@ export default function FinanzasPage() {
     // Calcular descuento automático
     const trabajador = previewData.trabajador;
     const horasProgramadas = trabajador.jornada.horasDiariasBase;
-    const tarifa = new Decimal(trabajador.jornada.tarifaPorHora);
+    const tarifa = parseFloat(trabajador.jornada.tarifaPorHora);
     const horasFaltantes = horasProgramadas - asistenciaJustificar.horasTrabajadas;
-    const descuentoAutomatico = tarifa.mul(horasFaltantes).toNumber();
+    const descuentoAutomatico = tarifa * horasFaltantes;
 
     // Calcular ajuste (cuánto recuperamos)
     const ajuste = descuentoAutomatico - descuentoFinal;
@@ -1453,10 +1452,10 @@ export default function FinanzasPage() {
                       
                       if (trabajador.tipoTrabajador === "FIJO" && asist.horasTrabajadas) {
                         const horasProgramadas = trabajador.jornada.horasDiariasBase;
-                        const tarifa = new Decimal(trabajador.jornada.tarifaPorHora);
+                        const tarifa = parseFloat(trabajador.jornada.tarifaPorHora);
                         const horasFaltantes = horasProgramadas - asist.horasTrabajadas;
                         if (horasFaltantes > 0) {
-                          descuentoAutomatico = tarifa.mul(horasFaltantes).toNumber();
+                          descuentoAutomatico = tarifa * horasFaltantes;
                           tieneDescuento = true;
                         }
                       }
@@ -1624,9 +1623,8 @@ export default function FinanzasPage() {
                       <span className="text-muted-foreground">Descuento automático:</span>
                       <span className="font-medium text-red-600">
                         -{formatCurrency(
-                          new Decimal(previewData.trabajador.jornada.tarifaPorHora)
-                            .mul(previewData.trabajador.jornada.horasDiariasBase - asistenciaJustificar.horasTrabajadas)
-                            .toNumber()
+                          parseFloat(previewData.trabajador.jornada.tarifaPorHora) *
+                            (previewData.trabajador.jornada.horasDiariasBase - asistenciaJustificar.horasTrabajadas)
                         )}
                       </span>
                     </div>
@@ -1662,9 +1660,8 @@ export default function FinanzasPage() {
                       <span>Descuento automático:</span>
                       <span className="font-medium">
                         {formatCurrency(
-                          new Decimal(previewData.trabajador.jornada.tarifaPorHora)
-                            .mul(previewData.trabajador.jornada.horasDiariasBase - asistenciaJustificar.horasTrabajadas)
-                            .toNumber()
+                          parseFloat(previewData.trabajador.jornada.tarifaPorHora) *
+                            (previewData.trabajador.jornada.horasDiariasBase - asistenciaJustificar.horasTrabajadas)
                         )}
                       </span>
                     </div>
@@ -1678,10 +1675,9 @@ export default function FinanzasPage() {
                       <span className="font-bold">Monto recuperado:</span>
                       <span className="font-bold text-green-600">
                         +{formatCurrency(
-                          new Decimal(previewData.trabajador.jornada.tarifaPorHora)
-                            .mul(previewData.trabajador.jornada.horasDiariasBase - asistenciaJustificar.horasTrabajadas)
-                            .sub(parseFloat(justificacionForm.montoDescuentoFinal))
-                            .toNumber()
+                          (parseFloat(previewData.trabajador.jornada.tarifaPorHora) *
+                            (previewData.trabajador.jornada.horasDiariasBase - asistenciaJustificar.horasTrabajadas)) -
+                            parseFloat(justificacionForm.montoDescuentoFinal)
                         )}
                       </span>
                     </div>
