@@ -87,6 +87,9 @@ export default function ProduccionPage() {
     metaSemanal: "",
   });
 
+  // Calcular actividad seleccionada (debe estar antes de los useEffect que la usan)
+  const actividadSeleccionada = actividades.find((a) => a.id === selectedActividad);
+
   useEffect(() => {
     cargarDatos();
   }, [fechaFiltro]);
@@ -393,8 +396,6 @@ export default function ProduccionPage() {
       setLoading(false);
     }
   };
-
-  const actividadSeleccionada = actividades.find((a) => a.id === selectedActividad);
 
   return (
     <div className="min-h-screen bg-muted/30">
