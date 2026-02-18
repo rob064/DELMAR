@@ -167,40 +167,12 @@ export async function POST(request: NextRequest) {
         horaInicioFinal = asistencia.horaEntrada;
       }
 
-      // 3. Validar que hora inicio esté dentro del rango de entrada/salida
-      // Normalizar fechas a minutos (eliminar segundos y milisegundos)
-      const horaEntrada = new Date(asistencia.horaEntrada);
-      horaEntrada.setSeconds(0, 0);
-      
-      const horaSalida = asistencia.horaSalida ? new Date(asistencia.horaSalida) : null;
-      if (horaSalida) {
-        horaSalida.setSeconds(0, 0);
-      }
-
-      const horaInicioNormalizada = new Date(horaInicioFinal);
-      horaInicioNormalizada.setSeconds(0, 0);
-
-      if (horaInicioNormalizada < horaEntrada) {
-        return NextResponse.json(
-          { 
-            error: `La hora de inicio no puede ser anterior a la hora de entrada en puerta (${horaEntrada.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
-          },
-          { status: 400 }
-        );
-      }
-
-      if (horaSalida && horaInicioNormalizada > horaSalida) {
-        return NextResponse.json(
-          { 
-            error: `La hora de inicio no puede ser posterior a la hora de salida en puerta (${horaSalida.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
-          },
-          { status: 400 }
-        );
-      }
-
-      // 4. Si se proporciona hora fin, validar rangos y solapamientos
+      // 3. Si se proporciona hora fin, validar duración
       if (horaFin) {
         const horaFinDate = new Date(horaFin);
+        const horaInicioNormalizada = new Date(horaInicioFinal);
+        horaInicioNormalizada.setSeconds(0, 0);
+        
         const horaFinNormalizada = new Date(horaFinDate);
         horaFinNormalizada.setSeconds(0, 0);
         
@@ -212,56 +184,17 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Validar que hora fin esté dentro del rango de entrada/salida
-        if (horaSalida && horaFinNormalizada > horaSalida) {
+        // Validar que no dure más de 24 horas (probable error)
+        const diffMs = horaFinNormalizada.getTime() - horaInicioNormalizada.getTime();
+        const horasTrabajadas = diffMs / (1000 * 60 * 60);
+        if (horasTrabajadas > 24) {
           return NextResponse.json(
-            { 
-              error: `La hora de finalización no puede ser posterior a la hora de salida en puerta (${horaSalida.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
-            },
+            { error: "La actividad no puede durar más de 24 horas. Verifica las horas ingresadas." },
             { status: 400 }
           );
         }
 
-        // Validar que no se solape con otras actividades por horas del mismo día
-        const solapamiento = await prisma.produccionDiaria.findFirst({
-          where: {
-            trabajadorId,
-            fecha: fechaProduccion,
-            actividad: {
-              tipoPago: "POR_HORA",
-            },
-            OR: [
-              {
-                AND: [
-                  { horaInicio: { lte: horaInicioFinal } },
-                  { horaFin: { gte: horaInicioFinal } },
-                ],
-              },
-              {
-                AND: [
-                  { horaInicio: { lte: horaFinDate } },
-                  { horaFin: { gte: horaFinDate } },
-                ],
-              },
-              {
-                AND: [
-                  { horaInicio: { gte: horaInicioFinal } },
-                  { horaFin: { lte: horaFinDate } },
-                ],
-              },
-            ],
-          },
-          include: {
-            actividad: true,
-          },
-        });
-
-        if (solapamiento) {
-          return NextResponse.json(
-            { error: `Esta actividad se solapa con: ${solapamiento.actividad.nombre}` },
-            { status: 400 }
-          );
-        }
+        // Nota: No validamos rangos de entrada/salida ni solapamiento porque puede haber cruce de medianoche
       }
 
       // 5. Calcular horas trabajadas y monto si tiene hora fin

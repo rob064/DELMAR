@@ -236,7 +236,23 @@ export default function ProduccionPage() {
       }
       
       const [horasFin, minutosFin] = horaFinCierre.split(':').map(Number);
-      const horaFinDate = new Date(year, month, day, horasFin, minutosFin, 0, 0);
+      let horaFinDate = new Date(year, month, day, horasFin, minutosFin, 0, 0);
+      
+      // DETECCIÓN AUTOMÁTICA DE CRUCE DE MEDIANOCHE
+      // Si hora fin < hora inicio, asumir que es del día siguiente
+      const horaInicio = new Date(actividadACerrar.horaInicio);
+      if (horaFinDate < horaInicio) {
+        horaFinDate = new Date(year, month, day + 1, horasFin, minutosFin, 0, 0);
+      }
+      
+      // Validar que no sea más de 24 horas (probable error)
+      const diffMs = horaFinDate.getTime() - horaInicio.getTime();
+      const horasTrabajadas = diffMs / (1000 * 60 * 60);
+      if (horasTrabajadas > 24) {
+        alert("Error: La actividad no puede durar más de 24 horas. Verifica la hora de finalización.");
+        setLoading(false);
+        return;
+      }
       
       const res = await fetch(`/api/produccion/${actividadACerrar.id}/cerrar`, {
         method: "PATCH",
@@ -338,7 +354,23 @@ export default function ProduccionPage() {
         
         if (horaFin) {
           const [horasFin, minutosFin] = horaFin.split(':').map(Number);
-          const horaFinDate = new Date(year, month - 1, day, horasFin, minutosFin, 0, 0);
+          let horaFinDate = new Date(year, month - 1, day, horasFin, minutosFin, 0, 0);
+          
+          // DETECCIÓN AUTOMÁTICA DE CRUCE DE MEDIANOCHE
+          // Si hora fin < hora inicio, asumir que es del día siguiente
+          if (horaFinDate < horaInicioDate) {
+            horaFinDate = new Date(year, month - 1, day + 1, horasFin, minutosFin, 0, 0);
+          }
+          
+          // Validar que no sea más de 24 horas (probable error)
+          const diffMs = horaFinDate.getTime() - horaInicioDate.getTime();
+          const horasTrabajadas = diffMs / (1000 * 60 * 60);
+          if (horasTrabajadas > 24) {
+            alert("Error: La actividad no puede durar más de 24 horas. Verifica las horas ingresadas.");
+            setLoading(false);
+            return;
+          }
+          
           horaFinISO = horaFinDate.toISOString();
         }
       }
@@ -582,15 +614,16 @@ export default function ProduccionPage() {
                     )}
                     
                     <div className="space-y-2">
-                      <Label>Hora de Inicio *</Label>
+                      <Label>Hora de Inicio * (formato 24h: 00:00 - 23:59)</Label>
                       <Input
                         type="time"
                         value={horaInicio}
                         onChange={(e) => setHoraInicio(e.target.value)}
                         required
+                        step="60"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Por defecto se toma la hora de entrada en puerta
+                        Por defecto se toma la hora de entrada en puerta. Ej: 14:30, 23:00
                       </p>
                     </div>
 
@@ -601,9 +634,15 @@ export default function ProduccionPage() {
                           type="time"
                           value={horaFin}
                           onChange={(e) => setHoraFin(e.target.value)}
+                          step="60"
                         />
+                        {horaFin && horaInicio && horaFin < horaInicio && (
+                          <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                            🌙 Actividad cruza medianoche (termina día siguiente)
+                          </p>
+                        )}
                         <p className="text-xs text-muted-foreground">
-                          Si no se especifica, la actividad quedará abierta para cerrarla después
+                          Si hora fin {'<'} hora inicio, se asume día siguiente automáticamente
                         </p>
                       </div>
                     )}
@@ -892,15 +931,24 @@ export default function ProduccionPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Hora de Finalización * (formato 24h)</Label>
+                  <Label>Hora de Finalización * (formato 24h: 00:00 - 23:59)</Label>
                   <Input
                     type="time"
                     value={horaFinCierre}
                     onChange={(e) => setHoraFinCierre(e.target.value)}
                     required
+                    step="60"
                   />
+                  {horaFinCierre && actividadACerrar?.horaInicio && (() => {
+                    const horaInicioStr = new Date(actividadACerrar.horaInicio).toTimeString().substring(0, 5);
+                    return horaFinCierre < horaInicioStr && (
+                      <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                        🌙 Actividad cruza medianoche (termina día siguiente)
+                      </p>
+                    );
+                  })()}
                   <p className="text-xs text-muted-foreground">
-                    Ingresa en formato 24 horas. Ejemplo: 23:30 para 11:30 PM
+                    Formato 24h. Ej: 02:00, 14:30, 23:45. Si es menor a hora inicio, se asume día siguiente
                   </p>
                 </div>
 
@@ -931,10 +979,28 @@ export default function ProduccionPage() {
                   }
                   
                   const [horasFin, minutosFin] = horaFinCierre.split(':').map(Number);
-                  const horaFinDate = new Date(year, month, day, horasFin, minutosFin, 0, 0);
+                  let horaFinDate = new Date(year, month, day, horasFin, minutosFin, 0, 0);
+                  
+                  // DETECCIÓN AUTOMÁTICA DE CRUCE DE MEDIANOCHE
+                  // Si hora fin < hora inicio, asumir que es del día siguiente
+                  if (horaFinDate < horaInicio) {
+                    horaFinDate = new Date(year, month, day + 1, horasFin, minutosFin, 0, 0);
+                  }
                   
                   const diffMs = horaFinDate.getTime() - horaInicio.getTime();
                   const horasTrabajadas = diffMs / (1000 * 60 * 60);
+                  
+                  // Validar que no sea más de 24 horas (probable error)
+                  if (horasTrabajadas > 24) {
+                    return (
+                      <div className="rounded-lg border p-3 bg-red-50 dark:bg-red-950/30">
+                        <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                          ⚠️ Error: La actividad no puede durar más de 24 horas
+                        </p>
+                      </div>
+                    );
+                  }
+                  
                   const monto = horasTrabajadas * parseFloat(actividadACerrar.actividad.valor);
 
                   return (

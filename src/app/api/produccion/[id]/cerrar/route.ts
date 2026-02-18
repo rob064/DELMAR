@@ -75,7 +75,17 @@ export async function PATCH(
       );
     }
 
-    // Obtener asistencia del día para validar rangos
+    // Validar que la actividad no dure más de 24 horas (probable error)
+    const diffMs = horaFinNormalizadaTemp.getTime() - horaInicioNormalizada.getTime();
+    const horasTrabajadas = diffMs / (1000 * 60 * 60);
+    if (horasTrabajadas > 24) {
+      return NextResponse.json(
+        { error: "La actividad no puede durar más de 24 horas. Verifica la hora de finalización." },
+        { status: 400 }
+      );
+    }
+
+    // Obtener asistencia del día de inicio para verificar que exista
     const asistencia = await prisma.asistencia.findUnique({
       where: {
         trabajadorId_fecha: {
@@ -87,83 +97,12 @@ export async function PATCH(
 
     if (!asistencia || !asistencia.horaEntrada) {
       return NextResponse.json(
-        { error: "No se encontró asistencia registrada para este día" },
+        { error: "No se encontró asistencia registrada para el día de inicio de esta actividad" },
         { status: 400 }
       );
     }
 
-    // Normalizar fechas a minutos (eliminar segundos y milisegundos)
-    const horaEntrada = new Date(asistencia.horaEntrada);
-    horaEntrada.setSeconds(0, 0);
-    
-    const horaSalida = asistencia.horaSalida ? new Date(asistencia.horaSalida) : null;
-    if (horaSalida) {
-      horaSalida.setSeconds(0, 0);
-    }
-
-    const horaFinNormalizada = new Date(horaFinDate);
-    horaFinNormalizada.setSeconds(0, 0);
-
-    // Validar que hora fin esté dentro del rango de entrada/salida
-    if (horaFinNormalizada < horaEntrada) {
-      return NextResponse.json(
-        { 
-          error: `La hora de finalización no puede ser anterior a la hora de entrada en puerta (${horaEntrada.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
-        },
-        { status: 400 }
-      );
-    }
-
-    if (horaSalida && horaFinNormalizada > horaSalida) {
-      return NextResponse.json(
-        { 
-          error: `La hora de finalización no puede ser posterior a la hora de salida en puerta (${horaSalida.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })})` 
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validar que no se solape con otras actividades por horas del mismo día
-    const solapamiento = await prisma.produccionDiaria.findFirst({
-      where: {
-        trabajadorId: produccion.trabajadorId,
-        fecha: produccion.fecha,
-        id: { not: id }, // Excluir la actividad actual
-        actividad: {
-          tipoPago: "POR_HORA",
-        },
-        OR: [
-          {
-            AND: [
-              { horaInicio: { lte: produccion.horaInicio } },
-              { horaFin: { gte: produccion.horaInicio } },
-            ],
-          },
-          {
-            AND: [
-              { horaInicio: { lte: horaFinDate } },
-              { horaFin: { gte: horaFinDate } },
-            ],
-          },
-          {
-            AND: [
-              { horaInicio: { gte: produccion.horaInicio } },
-              { horaFin: { lte: horaFinDate } },
-            ],
-          },
-        ],
-      },
-      include: {
-        actividad: true,
-      },
-    });
-
-    if (solapamiento) {
-      return NextResponse.json(
-        { error: `Esta actividad se solaparía con: ${solapamiento.actividad.nombre}` },
-        { status: 400 }
-      );
-    }
+    // Nota: No validamos rango de entrada/salida porque puede haber cruce de medianoche
 
     // Calcular horas trabajadas
     const diffMs = horaFinDate.getTime() - produccion.horaInicio.getTime();
