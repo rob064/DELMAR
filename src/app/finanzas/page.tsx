@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDate, obtenerFechaSemana } from "@/lib/utils";
 import { DollarSign, Plus, TrendingDown, TrendingUp, X, AlertCircle, CheckCircle2, Clock, Receipt } from "lucide-react";
+import { Decimal } from "@prisma/client/runtime/library";
 
 interface Trabajador {
   id: string;
